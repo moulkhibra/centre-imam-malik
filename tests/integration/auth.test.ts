@@ -29,7 +29,7 @@ const { createCenter, createUser } = await import('../helpers/factories');
  */
 describe('authentication and sessions', () => {
   beforeEach(async () => {
-    truncateAllTables();
+    await truncateAllTables(prisma);
   });
 
   it('hashes a password irreversibly and verifies it', async () => {
@@ -195,7 +195,7 @@ describe('authentication and sessions', () => {
 
 describe('server-side authorization', () => {
   beforeEach(async () => {
-    truncateAllTables();
+    await truncateAllTables(prisma);
   });
 
   it('throws for an anonymous caller', async () => {
@@ -234,7 +234,7 @@ describe('server-side authorization', () => {
 
 describe('audit log', () => {
   beforeEach(async () => {
-    truncateAllTables();
+    await truncateAllTables(prisma);
   });
 
   it('records the actor, action and entity', async () => {

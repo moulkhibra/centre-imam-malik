@@ -12,8 +12,8 @@ import { installReferenceData, nextDocumentNumber, computeAcademicYearLabel } fr
  * instead of in production.
  */
 describe('schema integrity', () => {
-  beforeEach(() => {
-    truncateAllTables();
+  beforeEach(async () => {
+    await truncateAllTables(prisma);
   });
 
   it('refuses two users with the same e-mail', async () => {
@@ -156,8 +156,8 @@ describe('schema integrity', () => {
 });
 
 describe('reference installation', () => {
-  beforeEach(() => {
-    truncateAllTables();
+  beforeEach(async () => {
+    await truncateAllTables(prisma);
   });
 
   it('installs subjects, levels, services, payment methods and the academic year', async () => {
@@ -249,8 +249,8 @@ describe('reference installation', () => {
 });
 
 describe('document numbering', () => {
-  beforeEach(() => {
-    truncateAllTables();
+  beforeEach(async () => {
+    await truncateAllTables(prisma);
   });
 
   it('increments inside a transaction and pads the value', async () => {

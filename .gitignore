@@ -44,3 +44,7 @@ desktop.ini
 
 # Generated Prisma client (recreated by `npm run db:generate` / setup)
 src/generated/
+
+# TypeScript incremental build state
+tsconfig.tsbuildinfo
+*.tsbuildinfo
