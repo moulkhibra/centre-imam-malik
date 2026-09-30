@@ -108,6 +108,49 @@ npm run db:migrate       # appliquer les migrations
 npm run db:seed          # données de référence
 ```
 
+### Compte administrateur
+
+`db:seed` **ne crée aucun compte administrateur** : sans identifiants fournis,
+il installe seulement les données de référence. Aucun mot de passe par défaut
+n'existe dans le dépôt, volontairement.
+
+| Commande | Effet |
+| --- | --- |
+| `npm run setup` | **La voie normale.** Demande l'e-mail et le mot de passe, les écrit dans `.env`, crée le compte. C'est ce que fait `install.bat`. |
+| `npm run db:seed` | Ne crée un administrateur que si `SEED_ADMIN_EMAIL` et `SEED_ADMIN_PASSWORD` sont déjà définis dans l'environnement. |
+| `npm run dev:admin` | **Voie de développement uniquement.** Crée un compte local sans passer par les questions de l'installateur. |
+
+```bash
+npm run db:seed                      # 1. données de référence
+npm run dev:admin                    # 2. compte de développement
+```
+
+**Identifiants de développement par défaut :**
+
+| | |
+| --- | --- |
+| e-mail | `dev@centre-imam-malik.local` |
+| mot de passe | `DevAdmin!2026` |
+
+Ouverture d'une session : `npm run dev`, puis <http://localhost:3000/login>.
+
+`dev:admin` accepte d'autres valeurs et réinitialise un compte existant :
+
+```bash
+npm run dev:admin -- admin@exemple.tld 'Mot de passe solide'
+```
+
+Précautions, appliquées par le script :
+
+- refusé si `NODE_ENV=production` ou `SEED_IS_PRODUCTION_SETUP=true` ;
+- refusé si la base visée est hors du dossier `prisma/` du projet ;
+- mot de passe validé par la **même** politique que l'application, puis
+  haché en bcrypt (coût 12) par le même code ;
+- `Ctrl+C` sur le compte précédent n'est pas nécessaire : relancer la commande
+  réinitialise le compte.
+
+Ce compte est local : supprimez-le avant tout usage réel.
+
 Le client Prisma est généré dans `src/generated/` et **n'est pas versionné** :
 il est recréé automatiquement par `npm install` (`postinstall`).
 

@@ -22,6 +22,7 @@
     "db:migrate:dev": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "dev:admin": "tsx scripts/create-dev-admin.ts",
     "setup": "node scripts/setup.mjs",
     "postinstall": "prisma generate",
     "test:e2e:ui": "playwright test --ui",
