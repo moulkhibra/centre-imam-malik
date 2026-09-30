@@ -50,6 +50,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           logout: t('common.logout'),
           account: t('common.profile'),
           switchTo: t('common.language'),
+          menu: t('common.menu'),
+        },
+        shell: {
+          mainNavigation: t('common.mainNavigation'),
+          openMenu: t('common.openMenu'),
+          centreManagement: t('common.centreManagement'),
         },
       }}
       user={{

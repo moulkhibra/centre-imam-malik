@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Sidebar, type SidebarLabels } from './Sidebar';
 import { Topbar, type TopbarLabels } from './Topbar';
 import type { Permission, Locale } from '@/lib/constants';
@@ -8,6 +8,8 @@ import type { Permission, Locale } from '@/lib/constants';
 export type AppShellLabels = {
   nav: SidebarLabels;
   topbar: TopbarLabels;
+  /** Interface chrome (navigation landmarks, menu button) in the active language. */
+  shell: SidebarLabels;
 };
 
 export function AppShell({
@@ -33,6 +35,17 @@ export function AppShell({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // The drawer covers the content, so Escape has to dismiss it: without this a
+  // keyboard user can open the menu and then cannot close it.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [menuOpen]);
+
   return (
     <div className="min-h-screen bg-canvas">
       <Sidebar
@@ -41,6 +54,7 @@ export function AppShell({
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         centerName={centerName}
+        shellLabels={labels.shell}
       />
 
       <div className="lg:ps-64">

@@ -46,10 +46,15 @@ export async function prepareE2eDatabase(): Promise<void> {
     SEED_ADMIN_LAST_NAME: 'Administrateur',
   });
 
-  if (!fs.existsSync('.next/BUILD_ID')) {
-    console.log('[e2e] no production build found, building');
-    run('npx', ['next', 'build'], { ...env, NODE_ENV: 'production' });
-  }
+  // Always rebuild.
+  //
+  // This used to be skipped when `.next/BUILD_ID` already existed, which meant
+  // the suite silently ran against a stale build: an RTL fix in the source was
+  // invisible to the tests, and the failing test looked like the fix had failed
+  // rather than like the harness had not compiled it. A release gate that can
+  // test old code is not a gate.
+  console.log('[e2e] building production bundle');
+  run('npx', ['next', 'build'], { ...env, NODE_ENV: 'production' });
 
   await seedE2eUsers();
 }

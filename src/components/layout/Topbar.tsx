@@ -14,6 +14,7 @@ export type TopbarLabels = {
   logout: string;
   account: string;
   switchTo: string;
+  menu: string;
 };
 
 function setLocaleCookie(locale: Locale) {
@@ -73,7 +74,7 @@ export function Topbar({
       <button
         type="button"
         onClick={onMenuClick}
-        aria-label="Menu"
+        aria-label={labels.menu ?? 'Menu'}
         className="rounded-lg p-2 text-ink-700 hover:bg-ink-100 lg:hidden"
       >
         <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
