@@ -1,0 +1,1097 @@
+// Prisma schema - Centre Imam Malik Management System
+// Default database: SQLite (offline, Windows-friendly)
+// PostgreSQL compatible: see docs/DEPLOYMENT.md for the provider switch.
+//
+// Money is stored in MINOR UNITS (centimes / halalas) as integers to avoid
+// floating point errors. Example: 500.00 DH => 50000.
+// Dates are stored as DateTime (UTC). Currency display is MAD/DH, format DD/MM/YYYY.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+// Prisma 7: the connection URL lives in prisma.config.ts (CLI) and is passed
+// to PrismaClient through a driver adapter (runtime). See src/lib/db/client.ts
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------------------------------------------------------------------------
+// ENUMS
+// SQLite (Prisma) does not support native enums, so enums are emulated with
+// checked string columns + TypeScript union types + Zod validation.
+// ---------------------------------------------------------------------------
+
+model Center {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  nameFr         String
+  nameAr         String?
+  legalName      String?
+  address        String?
+  city           String?
+  phone          String?
+  whatsapp       String?
+  email          String?
+  facebook       String?
+  instagram      String?
+  website        String?
+  websiteUrl     String?
+  logoPath       String?
+  primaryColor   String   @default("#0F766E")
+  secondaryColor String   @default("#F59E0B")
+  currency       String   @default("MAD")
+  timezone       String   @default("Africa/Casablanca")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  academicYears      AcademicYear[]
+  levels             AcademicLevel[]
+  subjects           Subject[]
+  services           Service[]
+  rooms              Room[]
+  users              User[]
+  students           Student[]
+  parents            Parent[]
+  teachers           Teacher[]
+  groups             Group[]
+  registrations      Registration[]
+  trainingPrograms   TrainingProgram[]
+  payments           Payment[]
+  receipts           Receipt[]
+  expenses           Expense[]
+  cashRegisters      CashRegister[]
+  cashTransactions   CashTransaction[]
+  invoices           Invoice[]
+  exams              Exam[]
+  certificates       Certificate[]
+  documents          Document[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  settings           CenterSetting[]
+  subjectsCategories SubjectCategory[]
+  expenseCategories  ExpenseCategory[]
+  promotions         Promotion[]
+  paymentsMethods    PaymentMethod[]
+  schedules          Schedule[]
+  attendanceSessions Session_Attendance[]
+
+  @@index([active])
+}
+
+model SubjectCategory {
+  id        String    @id @default(cuid())
+  centerId  String
+  nameFr    String
+  nameAr    String?
+  slug      String
+  sortOrder Int       @default(0)
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  center    Center    @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  subjects  Subject[]
+
+  @@unique([centerId, slug])
+  @@index([centerId])
+}
+
+model Subject {
+  id                  String               @id @default(cuid())
+  centerId            String
+  categoryId          String?
+  nameFr              String
+  nameAr              String?
+  code                String
+  description         String?
+  isLanguage          Boolean              @default(false)
+  active              Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  center              Center               @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  category            SubjectCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  groups              Group[]
+  groupSubjects       GroupSubject[]
+  teachingAssignments TeacherSubject[]
+  exams               Exam[]
+  grades              Grade[]
+  schedules           Schedule[]
+  sessions            Session_Attendance[]
+
+  @@unique([centerId, code])
+  @@index([centerId, active])
+  @@index([categoryId])
+}
+
+model Service {
+  id                     String   @id @default(cuid())
+  centerId               String
+  nameFr                 String
+  nameAr                 String?
+  code                   String
+  description            String?
+  defaultPriceCents      Int      @default(0)
+  defaultDurationMinutes Int      @default(0)
+  active                 Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  center                 Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  groups                 Group[]
+
+  @@unique([centerId, code])
+  @@index([centerId, active])
+}
+
+model AcademicYear {
+  id               String            @id @default(cuid())
+  centerId         String
+  label            String
+  startDate        DateTime
+  endDate          DateTime
+  isCurrent        Boolean           @default(false)
+  archived         Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  center           Center            @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  students         Student[]
+  groups           Group[]
+  registrations    Registration[]
+  trainingPrograms TrainingProgram[]
+
+  @@unique([centerId, label])
+  @@index([centerId, isCurrent])
+}
+
+model AcademicLevel {
+  id        String    @id @default(cuid())
+  centerId  String
+  stage     String
+  stageAr   String?
+  code      String
+  nameFr    String
+  nameAr    String?
+  sortOrder Int       @default(0)
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  center    Center    @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  students  Student[]
+  groups    Group[]
+
+  @@unique([centerId, code])
+  @@index([centerId, sortOrder])
+}
+
+// ---------------------------------------------------------------------------
+// IDENTITY & ACCESS
+// ---------------------------------------------------------------------------
+
+model User {
+  id                  String             @id @default(cuid())
+  centerId            String
+  email               String
+  passwordHash        String
+  firstName           String
+  lastName            String
+  phone               String?
+  avatarPath          String?
+  locale              String             @default("fr")
+  role                String             @default("SECRETARY")
+  permissions         String             @default("[]") // JSON array of permission keys
+  isActive            Boolean            @default(true)
+  mustChangePassword  Boolean            @default(false)
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int                @default(0)
+  lockedUntil         DateTime?
+  passwordChangedAt   DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+  center              Center             @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  sessions            Session[]
+  auditLogs           AuditLog[]
+  createdPayments     Payment[]          @relation("PaymentCreatedBy")
+  receiptsIssued      Receipt[]          @relation("ReceiptIssuedBy")
+  expensesCreated     Expense[]          @relation("ExpenseCreatedBy")
+  cashSessionsOpened  CashRegister[]     @relation("CashRegisterOpenedBy")
+  cashSessionsClosed  CashRegister[]     @relation("CashRegisterClosedBy")
+  cashTransactions    CashTransaction[]  @relation("CashTransactionBy")
+  attendanceRecorded  AttendanceRecord[] @relation("AttendanceRecordedBy")
+  documentsUploaded   Document[]         @relation("DocumentUploadedBy")
+  notificationsRead   Notification[]     @relation("NotificationReadBy")
+  certificatesIssued  Certificate[]      @relation("CertificateIssuedBy")
+  createdById         String?
+
+  @@unique([email])
+  @@index([centerId, role, isActive])
+  @@index([deletedAt])
+}
+
+model Session {
+  id             String    @id @default(cuid())
+  userId         String
+  tokenHash      String    @unique
+  ipAddress      String?
+  userAgent      String?
+  expiresAt      DateTime
+  lastActivityAt DateTime  @default(now())
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// PEOPLE
+// ---------------------------------------------------------------------------
+
+model Student {
+  id                     String                @id @default(cuid())
+  centerId               String
+  code                   String
+  firstName              String
+  lastName               String
+  firstNameAr            String?
+  lastNameAr             String?
+  birthDate              DateTime?
+  gender                 String?
+  cin                    String?
+  phone                  String?
+  whatsapp               String?
+  email                  String?
+  address                String?
+  city                   String?
+  school                 String?
+  levelId                String?
+  emergencyContactName   String?
+  emergencyContactPhone  String?
+  photoPath              String?
+  notes                  String?
+  status                 String                @default("ACTIVE")
+  registrationDate       DateTime              @default(now())
+  academicYearId         String?
+  archivedAt             DateTime?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  deletedAt              DateTime?
+  center                 Center                @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  level                  AcademicLevel?        @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  academicYear           AcademicYear?         @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
+  parents                StudentParent[]
+  groupStudents          GroupStudent[]
+  registrations          Registration[]
+  attendanceRecords      AttendanceRecord[]
+  payments               Payment[]
+  receipts               Receipt[]
+  documents              Document[]
+  grades                 Grade[]
+  certificates           Certificate[]
+  trainingParticipations TrainingParticipant[]
+  monthlyFees            MonthlyFee[]
+  invoices               Invoice[]
+  examResults            ExamResult[]
+
+  @@unique([centerId, code])
+  @@index([centerId, status, deletedAt])
+  @@index([levelId])
+  @@index([academicYearId])
+  @@index([lastName, firstName])
+  @@index([phone])
+}
+
+model Parent {
+  id        String          @id @default(cuid())
+  centerId  String
+  code      String
+  firstName String
+  lastName  String
+  phone     String?
+  whatsapp  String?
+  email     String?
+  address   String?
+  city      String?
+  cin       String?
+  relation  String?
+  notes     String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  deletedAt DateTime?
+  center    Center          @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  students  StudentParent[]
+  invoices  Invoice[]
+
+  @@unique([centerId, code])
+  @@index([centerId, lastName])
+  @@index([phone])
+}
+
+model StudentParent {
+  id        String   @id @default(cuid())
+  studentId String
+  parentId  String
+  relation  String   @default("PARENT")
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  parent    Parent   @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, parentId])
+  @@index([parentId])
+}
+
+model Teacher {
+  id                String               @id @default(cuid())
+  centerId          String
+  code              String
+  firstName         String
+  lastName          String
+  firstNameAr       String?
+  lastNameAr        String?
+  phone             String?
+  whatsapp          String?
+  email             String?
+  cin               String?
+  specialization    String?
+  bio               String?
+  photoPath         String?
+  status            String               @default("ACTIVE")
+  hiredAt           DateTime?
+  notes             String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  deletedAt         DateTime?
+  center            Center               @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  subjects          TeacherSubject[]
+  groups            Group[]
+  schedules         Schedule[]
+  sessions          Session_Attendance[]
+  documents         Document[]
+  attendanceRecords AttendanceRecord[]
+  exams             Exam[]
+  grades            Grade[]
+  trainings         TrainingProgram[]
+
+  @@unique([centerId, code])
+  @@index([centerId, status, deletedAt])
+  @@index([lastName, firstName])
+}
+
+model TeacherSubject {
+  id        String   @id @default(cuid())
+  teacherId String
+  subjectId String
+  createdAt DateTime @default(now())
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, subjectId])
+  @@index([subjectId])
+}
+
+model Room {
+  id               String            @id @default(cuid())
+  centerId         String
+  name             String
+  capacity         Int               @default(0)
+  location         String?
+  equipment        String?
+  status           String            @default("AVAILABLE")
+  notes            String?
+  active           Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  center           Center            @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  groups           Group[]
+  schedules        Schedule[]
+  trainingPrograms TrainingProgram[]
+
+  @@unique([centerId, name])
+  @@index([centerId, active])
+}
+
+// ---------------------------------------------------------------------------
+// ACADEMIC
+// ---------------------------------------------------------------------------
+
+model Group {
+  id                     String               @id @default(cuid())
+  centerId               String
+  academicYearId         String?
+  levelId                String?
+  subjectId              String?
+  serviceId              String?
+  name                   String
+  code                   String
+  teacherId              String?
+  roomId                 String?
+  capacity               Int                  @default(20)
+  defaultPriceCents      Int                  @default(0)
+  sessionDurationMinutes Int                  @default(90)
+  status                 String               @default("ACTIVE")
+  startDate              DateTime?
+  endDate                DateTime?
+  notes                  String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  deletedAt              DateTime?
+  center                 Center               @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  academicYear           AcademicYear?        @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
+  level                  AcademicLevel?       @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  subject                Subject?             @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  service                Service?             @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  teacher                Teacher?             @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  room                   Room?                @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  groupSubjects          GroupSubject[]
+  students               GroupStudent[]
+  schedules              Schedule[]
+  sessions               Session_Attendance[]
+  registrations          Registration[]
+  exams                  Exam[]
+  attendanceRecords      AttendanceRecord[]
+  documents              Document[]
+
+  @@unique([centerId, code])
+  @@index([centerId, status, deletedAt])
+  @@index([teacherId])
+  @@index([roomId])
+  @@index([levelId])
+}
+
+model GroupSubject {
+  id        String   @id @default(cuid())
+  groupId   String
+  subjectId String
+  createdAt DateTime @default(now())
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, subjectId])
+  @@index([subjectId])
+}
+
+model GroupStudent {
+  id        String    @id @default(cuid())
+  groupId   String
+  studentId String
+  joinedAt  DateTime  @default(now())
+  leftAt    DateTime?
+  status    String    @default("ACTIVE")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, status])
+  @@index([studentId, status])
+}
+
+model Schedule {
+  id                String           @id @default(cuid())
+  centerId          String
+  groupId           String?
+  teacherId         String?
+  roomId            String?
+  subjectId         String?
+  trainingProgramId String?
+  dayOfWeek         Int
+  startMinute       Int
+  endMinute         Int
+  effectiveFrom     DateTime?
+  effectiveTo       DateTime?
+  status            String           @default("ACTIVE")
+  notes             String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  center            Center           @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  group             Group?           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  teacher           Teacher?         @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  room              Room?            @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  subject           Subject?         @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  trainingProgram   TrainingProgram? @relation(fields: [trainingProgramId], references: [id], onDelete: Cascade)
+
+  @@index([centerId, dayOfWeek, status])
+  @@index([groupId])
+  @@index([teacherId, dayOfWeek])
+  @@index([roomId, dayOfWeek])
+}
+
+model Session_Attendance {
+  id          String             @id @default(cuid())
+  centerId    String
+  groupId     String?
+  teacherId   String?
+  subjectId   String?
+  date        DateTime
+  startMinute Int
+  endMinute   Int
+  title       String?
+  status      String             @default("PLANNED")
+  notes       String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  center      Center             @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  group       Group?             @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  teacher     Teacher?           @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  subject     Subject?           @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  records     AttendanceRecord[]
+
+  @@index([centerId, date, status])
+  @@index([groupId, date])
+}
+
+model AttendanceRecord {
+  id           String             @id @default(cuid())
+  sessionId    String
+  studentId    String
+  groupId      String?
+  status       String             @default("PRESENT")
+  minutesLate  Int                @default(0)
+  note         String?
+  recordedById String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  session      Session_Attendance @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student      Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  group        Group?             @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  recordedBy   User?              @relation("AttendanceRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+  teacher      Teacher?           @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  teacherId    String?
+
+  @@unique([sessionId, studentId])
+  @@index([studentId, status])
+  @@index([groupId, status])
+}
+
+// ---------------------------------------------------------------------------
+// FINANCE
+// ---------------------------------------------------------------------------
+
+model PaymentMethod {
+  id        String    @id @default(cuid())
+  centerId  String
+  code      String
+  nameFr    String
+  nameAr    String?
+  active    Boolean   @default(true)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  center    Center    @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  payments  Payment[]
+  expenses  Expense[]
+
+  @@unique([centerId, code])
+  @@index([centerId, active])
+}
+
+model Promotion {
+  id               String    @id @default(cuid())
+  centerId         String
+  name             String
+  nameAr           String?
+  code             String
+  type             String    @default("PERCENTAGE")
+  value            Int       @default(0)
+  minAmountCents   Int       @default(0)
+  maxDiscountCents Int       @default(0)
+  startDate        DateTime?
+  endDate          DateTime?
+  appliesToAll     Boolean   @default(true)
+  eligibleLevels   String?
+  active           Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  center           Center    @relation(fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@unique([centerId, code])
+  @@index([centerId, active])
+}
+
+model Registration {
+  id                String           @id @default(cuid())
+  centerId          String
+  studentId         String
+  groupId           String?
+  trainingProgramId String?
+  serviceId         String?
+  academicYearId    String?
+  reference         String           @unique
+  startDate         DateTime         @default(now())
+  endDate           DateTime?
+  basePriceCents    Int              @default(0)
+  discountCents     Int              @default(0)
+  promotionCents    Int              @default(0)
+  finalPriceCents   Int              @default(0)
+  billingType       String           @default("ONE_TIME")
+  status            String           @default("PENDING")
+  notes             String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  deletedAt         DateTime?
+  center            Center           @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  student           Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  group             Group?           @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  trainingProgram   TrainingProgram? @relation(fields: [trainingProgramId], references: [id], onDelete: SetNull)
+  academicYear      AcademicYear?    @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
+  payments          Payment[]
+  monthlyFees       MonthlyFee[]
+  documents         Document[]
+
+  @@index([centerId, status, deletedAt])
+  @@index([studentId, status])
+  @@index([groupId])
+  @@index([academicYearId])
+}
+
+model MonthlyFee {
+  id             String       @id @default(cuid())
+  centerId       String
+  registrationId String
+  studentId      String
+  year           Int
+  month          Int
+  amountCents    Int          @default(0)
+  paidCents      Int          @default(0)
+  dueDate        DateTime?
+  status         String       @default("UNPAID")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([registrationId, year, month])
+  @@index([centerId, year, month, status])
+  @@index([studentId, status])
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  centerId      String
+  number        String        @unique
+  studentId     String?
+  parentId      String?
+  issueDate     DateTime      @default(now())
+  dueDate       DateTime?
+  subtotalCents Int           @default(0)
+  discountCents Int           @default(0)
+  taxCents      Int           @default(0)
+  totalCents    Int           @default(0)
+  status        String        @default("ISSUED")
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  center        Center        @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  student       Student?      @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  parent        Parent?       @relation(fields: [parentId], references: [id], onDelete: SetNull)
+  items         InvoiceItem[]
+  payments      Payment[]
+
+  @@index([centerId, status, issueDate])
+  @@index([studentId])
+}
+
+model InvoiceItem {
+  id             String  @id @default(cuid())
+  invoiceId      String
+  description    String
+  quantity       Int     @default(1)
+  unitPriceCents Int     @default(0)
+  totalCents     Int     @default(0)
+  sortOrder      Int     @default(0)
+  invoice        Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model Payment {
+  id              String           @id @default(cuid())
+  centerId        String
+  reference       String           @unique
+  studentId       String
+  registrationId  String?
+  invoiceId       String?
+  methodId        String?
+  amountCents     Int
+  paidAt          DateTime         @default(now())
+  kind            String           @default("PAYMENT")
+  note            String?
+  isAdvance       Boolean          @default(false)
+  reversedAt      DateTime?
+  reversalReason  String?
+  createdById     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  center          Center           @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  student         Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  registration    Registration?    @relation(fields: [registrationId], references: [id], onDelete: SetNull)
+  invoice         Invoice?         @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  method          PaymentMethod?   @relation(fields: [methodId], references: [id], onDelete: SetNull)
+  createdBy       User?            @relation("PaymentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  receipt         Receipt?
+  cashTransaction CashTransaction?
+
+  @@index([centerId, paidAt, kind])
+  @@index([studentId, kind])
+  @@index([registrationId])
+  @@index([invoiceId])
+}
+
+model Receipt {
+  id             String    @id @default(cuid())
+  centerId       String
+  number         String    @unique
+  paymentId      String?   @unique
+  studentId      String
+  issueDate      DateTime  @default(now())
+  amountCents    Int       @default(0)
+  paidCents      Int       @default(0)
+  remainingCents Int       @default(0)
+  methodLabel    String?
+  reason         String?
+  footerText     String?
+  language       String    @default("fr")
+  issuedById     String?
+  createdAt      DateTime  @default(now())
+  voidedAt       DateTime?
+  center         Center    @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  payment        Payment?  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  student        Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  issuedBy       User?     @relation("ReceiptIssuedBy", fields: [issuedById], references: [id], onDelete: SetNull)
+
+  @@index([centerId, issueDate])
+  @@index([studentId])
+}
+
+model ExpenseCategory {
+  id        String    @id @default(cuid())
+  centerId  String
+  nameFr    String
+  nameAr    String?
+  code      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  center    Center    @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  expenses  Expense[]
+
+  @@unique([centerId, code])
+  @@index([centerId])
+}
+
+model Expense {
+  id              String           @id @default(cuid())
+  centerId        String
+  categoryId      String?
+  reference       String           @unique
+  description     String
+  amountCents     Int
+  spentAt         DateTime         @default(now())
+  methodId        String?
+  supplier        String?
+  note            String?
+  createdById     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  center          Center           @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  category        ExpenseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  method          PaymentMethod?   @relation(fields: [methodId], references: [id], onDelete: SetNull)
+  createdBy       User?            @relation("ExpenseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  cashTransaction CashTransaction?
+
+  @@index([centerId, spentAt, deletedAt])
+  @@index([categoryId])
+}
+
+model CashRegister {
+  id                   String            @id @default(cuid())
+  centerId             String
+  reference            String            @unique
+  openedAt             DateTime          @default(now())
+  closedAt             DateTime?
+  openingBalanceCents  Int               @default(0)
+  closingBalanceCents  Int?
+  expectedClosingCents Int?
+  differenceCents      Int?
+  status               String            @default("OPEN")
+  notes                String?
+  openedById           String?
+  closedById           String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  center               Center            @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  openedBy             User?             @relation("CashRegisterOpenedBy", fields: [openedById], references: [id], onDelete: SetNull)
+  closedBy             User?             @relation("CashRegisterClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  transactions         CashTransaction[]
+
+  @@index([centerId, status])
+}
+
+model CashTransaction {
+  id             String       @id @default(cuid())
+  cashRegisterId String
+  centerId       String
+  paymentId      String?      @unique
+  expenseId      String?      @unique
+  kind           String
+  amountCents    Int
+  description    String?
+  occurredAt     DateTime     @default(now())
+  createdById    String?
+  createdAt      DateTime     @default(now())
+  cashRegister   CashRegister @relation(fields: [cashRegisterId], references: [id], onDelete: Cascade)
+  center         Center       @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  payment        Payment?     @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  expense        Expense?     @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  createdBy      User?        @relation("CashTransactionBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([cashRegisterId, occurredAt])
+  @@index([centerId, kind])
+}
+
+// ---------------------------------------------------------------------------
+// TRAINING
+// ---------------------------------------------------------------------------
+
+model TrainingProgram {
+  id                 String                @id @default(cuid())
+  centerId           String
+  academicYearId     String?
+  trainerId          String?
+  roomId             String?
+  code               String
+  titleFr            String
+  titleAr            String?
+  category           String
+  description        String?
+  durationHours      Int                   @default(0)
+  sessionsCount      Int                   @default(0)
+  startDate          DateTime?
+  endDate            DateTime?
+  capacity           Int                   @default(20)
+  priceCents         Int                   @default(0)
+  status             String                @default("PLANNED")
+  certificateEnabled Boolean               @default(true)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @default(now())
+  deletedAt          DateTime?
+  center             Center                @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  academicYear       AcademicYear?         @relation(fields: [academicYearId], references: [id], onDelete: SetNull)
+  trainer            Teacher?              @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+  room               Room?                 @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  participants       TrainingParticipant[]
+  registrations      Registration[]
+  schedules          Schedule[]
+  certificates       Certificate[]
+
+  @@unique([centerId, code])
+  @@index([centerId, status, deletedAt])
+  @@index([category])
+}
+
+model TrainingParticipant {
+  id                String          @id @default(cuid())
+  trainingProgramId String
+  studentId         String
+  status            String          @default("REGISTERED")
+  enrolledAt        DateTime        @default(now())
+  completedAt       DateTime?
+  finalEvaluation   String?
+  evaluationScore   Int?
+  attendanceRate    Float           @default(0)
+  certificateId     String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  trainingProgram   TrainingProgram @relation(fields: [trainingProgramId], references: [id], onDelete: Cascade)
+  student           Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([trainingProgramId, studentId])
+  @@index([studentId, status])
+}
+
+// ---------------------------------------------------------------------------
+// EVALUATION
+// ---------------------------------------------------------------------------
+
+model Exam {
+  id              String       @id @default(cuid())
+  centerId        String
+  groupId         String?
+  subjectId       String
+  teacherId       String?
+  title           String
+  examType        String       @default("CONTROL")
+  academicYearId  String?
+  examDate        DateTime
+  durationMinutes Int          @default(60)
+  coefficient     Float        @default(1)
+  maxScore        Float        @default(20)
+  instructions    String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+  center          Center       @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  group           Group?       @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  subject         Subject      @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  teacher         Teacher?     @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  grades          Grade[]
+  results         ExamResult[]
+
+  @@index([centerId, examDate, deletedAt])
+  @@index([groupId])
+  @@index([subjectId])
+}
+
+model Grade {
+  id          String   @id @default(cuid())
+  examId      String
+  studentId   String
+  teacherId   String?
+  subjectId   String
+  score       Float
+  maxScore    Float
+  coefficient Float    @default(1)
+  comment     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher     Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  subject     Subject  @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+
+  @@unique([examId, studentId])
+  @@index([studentId, subjectId])
+}
+
+model ExamResult {
+  id        String   @id @default(cuid())
+  examId    String
+  studentId String
+  average   Float
+  rank      Int?
+  createdAt DateTime @default(now())
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, studentId])
+  @@index([studentId])
+}
+
+model Certificate {
+  id                String           @id @default(cuid())
+  centerId          String
+  number            String           @unique
+  studentId         String
+  trainingProgramId String?
+  type              String           @default("PARTICIPATION")
+  issueDate         DateTime         @default(now())
+  durationLabel     String?
+  finalScore        Float?
+  language          String           @default("fr")
+  bodyText          String?
+  issuedById        String?
+  revokedAt         DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  center            Center           @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  student           Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  trainingProgram   TrainingProgram? @relation(fields: [trainingProgramId], references: [id], onDelete: SetNull)
+  issuedBy          User?            @relation("CertificateIssuedBy", fields: [issuedById], references: [id], onDelete: SetNull)
+  documents         Document[]
+
+  @@index([centerId, issueDate])
+  @@index([studentId])
+}
+
+model Document {
+  id             String        @id @default(cuid())
+  centerId       String
+  studentId      String?
+  teacherId      String?
+  registrationId String?
+  certificateId  String?
+  groupId        String?
+  originalName   String
+  storedName     String
+  mimeType       String
+  sizeBytes      Int
+  checksum       String?
+  category       String        @default("OTHER")
+  uploadedById   String?
+  createdAt      DateTime      @default(now())
+  deletedAt      DateTime?
+  center         Center        @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  student        Student?      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher        Teacher?      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  registration   Registration? @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  certificate    Certificate?  @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  group          Group?        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  uploadedBy     User?         @relation("DocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([centerId, category, deletedAt])
+  @@index([studentId])
+  @@index([teacherId])
+}
+
+// ---------------------------------------------------------------------------
+// SYSTEM
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id         String    @id @default(cuid())
+  centerId   String
+  userId     String?
+  type       String
+  severity   String    @default("INFO")
+  titleFr    String
+  titleAr    String?
+  bodyFr     String
+  bodyAr     String?
+  link       String?
+  entityType String?
+  entityId   String?
+  readAt     DateTime?
+  readById   String?
+  createdAt  DateTime  @default(now())
+  center     Center    @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  readBy     User?     @relation("NotificationReadBy", fields: [readById], references: [id], onDelete: SetNull)
+
+  @@index([centerId, createdAt])
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  centerId   String
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  ipAddress  String?
+  userAgent  String?
+  metadata   String?
+  createdAt  DateTime @default(now())
+  center     Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([centerId, createdAt])
+  @@index([userId, action])
+  @@index([entityType, entityId])
+}
+
+model CenterSetting {
+  id        String   @id @default(cuid())
+  centerId  String
+  key       String
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  center    Center   @relation(fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@unique([centerId, key])
+  @@index([centerId])
+}

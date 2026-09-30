@@ -1,0 +1,75 @@
+{
+  "generatedAt": "2026-09-30T19:00:14.595Z",
+  "library": "@react-pdf/renderer",
+  "font": "Cairo (static instances, embedded)",
+  "pdfBytes": 26820,
+  "checks": [
+    {
+      "name": "Valid PDF header and EOF",
+      "passed": true,
+      "detail": "header=%PDF-1.3"
+    },
+    {
+      "name": "Font embedded as CIDFontType2 with FontFile2",
+      "passed": true,
+      "detail": "CIDFontType2=true FontFile2=true"
+    },
+    {
+      "name": "Embedded font is Cairo",
+      "passed": true,
+      "detail": "Cairo name present=true"
+    },
+    {
+      "name": "Identity-H Unicode CID mapping",
+      "passed": true,
+      "detail": "Identity-H=true"
+    },
+    {
+      "name": "Arabic runs are shaped and stored in visual order",
+      "passed": true,
+      "detail": "visualOrder=true shaped=true identityH=true R2L markers=0"
+    },
+    {
+      "name": "Glyph selection (gs) present — shaping output present",
+      "passed": true,
+      "detail": "84 gs operator(s)"
+    },
+    {
+      "name": "Font cmap covers Arabic, diacritics, Latin and French accents",
+      "passed": true,
+      "detail": "all 14 codepoints present"
+    },
+    {
+      "name": "Arabic not stored in reversed order",
+      "passed": true,
+      "detail": "reversed form \"يملعلا نيمألا دمحم\" found=false"
+    },
+    {
+      "name": "Text showing operators emitted",
+      "passed": true,
+      "detail": "128 TJ operator(s)"
+    },
+    {
+      "name": "All three weights embedded",
+      "passed": true,
+      "detail": "3 FontFile2 entries"
+    },
+    {
+      "name": "A4 page size",
+      "passed": true,
+      "detail": "MediaBox=[0 0 595.280029 841.890015] A4=true"
+    },
+    {
+      "name": "An independent PDF reader extracts readable Arabic",
+      "passed": true,
+      "detail": "pdftotext recovered every character of 7 Arabic strings"
+    },
+    {
+      "name": "The same reader recovers the French text verbatim",
+      "passed": true,
+      "detail": "latinToUnicode=true"
+    }
+  ],
+  "passed": 13,
+  "failed": 0
+}

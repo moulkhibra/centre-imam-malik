@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CIM">
+  <rect width="64" height="64" rx="14" fill="#0F766E"/>
+  <path d="M32 14c-3 3-4.5 6-4.5 9.5 0 4.2 2 7 4.5 9.5-2.5 2.5-4.5 5.3-4.5 9.5h9c0-4.2-2-7-4.5-9.5 2.5-2.5 4.5-5.3 4.5-9.5 0-3.5-1.5-6.5-4.5-9.5z" fill="#fff" opacity=".95"/>
+  <rect x="16" y="46" width="32" height="4" rx="2" fill="#F59E0B"/>
+</svg>

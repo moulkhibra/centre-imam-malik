@@ -1,0 +1,46 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# Local env files (may contain generated secrets)
+.env
+.env.local
+.env.*.local
+
+# Runtime data - never commit
+prisma/*.db
+prisma/*.db-journal
+prisma/*.db-wal
+prisma/*.db-shm
+prisma/data/
+backups/
+storage/
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+
+# Throwaway test databases (rebuilt from the real migrations on every run)
+.tmp/
+
+# Generated Prisma client (recreated by `npm run db:generate` / setup)
+src/generated/
