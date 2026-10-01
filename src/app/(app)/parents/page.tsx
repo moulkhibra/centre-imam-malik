@@ -66,6 +66,7 @@ export default async function ParentsPage({ searchParams }: { searchParams: Sear
     search: t('common.search'),
     reset: t('common.reset'),
     all: t('common.all'),
+    none: t('common.none'),
     noResults: t('common.noResults'),
     empty: t('parents.empty'),
     emptySearch: t('parents.emptySearch'),
@@ -91,9 +92,7 @@ export default async function ParentsPage({ searchParams }: { searchParams: Sear
     create: t('common.create'),
     save: t('common.save'),
     cancel: t('common.cancel'),
-    close: t('common.close'),
     confirm: t('common.confirm'),
-    required: t('common.required'),
     optional: t('common.optional'),
     whatsapp: t('parents.whatsapp'),
     email: t('parents.email'),
@@ -114,7 +113,6 @@ export default async function ParentsPage({ searchParams }: { searchParams: Sear
     page: t('common.page'),
     of: t('common.of'),
     showing: t('common.showing'),
-    to: t('common.to'),
   };
 
   return (

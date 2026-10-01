@@ -102,6 +102,8 @@ export type PeopleLabels = {
   search: string;
   reset: string;
   all: string;
+  /** The "no value" option of an optional select, as opposed to `all`. */
+  none: string;
   noResults: string;
   empty: string;
   emptySearch: string;
@@ -127,9 +129,7 @@ export type PeopleLabels = {
   create: string;
   save: string;
   cancel: string;
-  close: string;
   confirm: string;
-  required: string;
   optional: string;
   // form
   firstNameAr: string;
@@ -155,8 +155,8 @@ export type PeopleLabels = {
   next: string;
   page: string;
   of: string;
+  /** Whole sentence with `{from}` / `{to}` / `{total}`; the view interpolates. */
   showing: string;
-  to: string;
 };
 
 export type FieldErrorMap = Record<string, string[] | undefined>;

@@ -104,6 +104,26 @@ function activeFrom(filters: CatalogFilters): boolean | undefined {
   return undefined;
 }
 
+/**
+ * Makes a search term safe to hand to Prisma's `contains`.
+ *
+ * `contains` compiles to `LIKE '%' || ? || '%'` with no `ESCAPE '\'` clause, so
+ * backslash-escaping made a search for `a_b` match only a literal backslash.
+ * Dropping the wildcard characters keeps the term a plain substring.
+ */
+function stripLikeWildcards(q: string): string {
+  return q.replace(/[%_\\]/g, '');
+}
+
+/**
+ * "Matches nothing", for a search term that was nothing but wildcards.
+ *
+ * `contains: ''` matches every row, so a bare `%` in the search box would list
+ * the whole catalogue; an empty `in` list is Prisma's way of saying "no row",
+ * which is the honest answer for a term with no literal characters in it.
+ */
+const MATCHES_NOTHING = { id: { in: [] as string[] } };
+
 async function paginate<T>(
   countPromise: Prisma.PrismaPromise<number>,
   rowsPromise: Prisma.PrismaPromise<T[]>,
@@ -121,8 +141,10 @@ export async function listLevels(centerId: string, raw: unknown): Promise<Catalo
   const where: Prisma.AcademicLevelWhereInput = { centerId, active: activeFrom(query.filter) };
   if (query.filter.stage) where.stage = query.filter.stage;
   if (query.q) {
-    const term = query.q.replace(/[%_\\]/g, (char) => `\\${char}`);
-    where.OR = [{ nameFr: { contains: term } }, { nameAr: { contains: term } }, { code: { contains: term } }];
+    const term = stripLikeWildcards(query.q);
+    where.OR = term
+      ? [{ nameFr: { contains: term } }, { nameAr: { contains: term } }, { code: { contains: term } }]
+      : [MATCHES_NOTHING];
   }
 
   const { rows, pagination } = await paginate(
@@ -160,8 +182,10 @@ export async function listSubjects(
   const where: Prisma.SubjectWhereInput = { centerId, active: activeFrom(query.filter) };
   if (options.languagesOnly) where.isLanguage = true;
   if (query.q) {
-    const term = query.q.replace(/[%_\\]/g, (char) => `\\${char}`);
-    where.OR = [{ nameFr: { contains: term } }, { nameAr: { contains: term } }, { code: { contains: term } }];
+    const term = stripLikeWildcards(query.q);
+    where.OR = term
+      ? [{ nameFr: { contains: term } }, { nameAr: { contains: term } }, { code: { contains: term } }]
+      : [MATCHES_NOTHING];
   }
 
   const { rows, pagination } = await paginate(
@@ -195,8 +219,10 @@ export async function listServices(centerId: string, raw: unknown): Promise<Cata
   const query = serviceList.parse(raw);
   const where: Prisma.ServiceWhereInput = { centerId, active: activeFrom(query.filter) };
   if (query.q) {
-    const term = query.q.replace(/[%_\\]/g, (char) => `\\${char}`);
-    where.OR = [{ nameFr: { contains: term } }, { nameAr: { contains: term } }, { code: { contains: term } }];
+    const term = stripLikeWildcards(query.q);
+    where.OR = term
+      ? [{ nameFr: { contains: term } }, { nameAr: { contains: term } }, { code: { contains: term } }]
+      : [MATCHES_NOTHING];
   }
 
   const { rows, pagination } = await paginate(
@@ -229,12 +255,14 @@ export async function listRooms(centerId: string, raw: unknown): Promise<Catalog
   const query = roomList.parse(raw);
   const where: Prisma.RoomWhereInput = { centerId, active: activeFrom(query.filter) };
   if (query.q) {
-    const term = query.q.replace(/[%_\\]/g, (char) => `\\${char}`);
-    where.OR = [
-      { name: { contains: term } },
-      { location: { contains: term } },
-      { equipment: { contains: term } },
-    ];
+    const term = stripLikeWildcards(query.q);
+    where.OR = term
+      ? [
+          { name: { contains: term } },
+          { location: { contains: term } },
+          { equipment: { contains: term } },
+        ]
+      : [MATCHES_NOTHING];
   }
 
   const { rows, pagination } = await paginate(

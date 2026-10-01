@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { E2E_ADMIN, E2E_DB_PATH, E2E_LOCKOUT, E2E_STAFF } from '../playwright.config';
+import { E2E_ADMIN, E2E_DB_PATH, E2E_LOCKOUT, E2E_PHASE2_ADMIN, E2E_STAFF } from '../playwright.config';
 
 /**
  * Prepares and tears down the end-to-end environment.
@@ -71,7 +71,7 @@ async function seedE2eUsers(): Promise<void> {
   const { hashPassword } = await import('@/lib/auth/password');
 
   const center = await prisma.center.findFirstOrThrow();
-  const accounts = [E2E_STAFF, E2E_LOCKOUT];
+  const accounts = [E2E_STAFF, E2E_LOCKOUT, E2E_PHASE2_ADMIN];
 
   for (const account of accounts) {
     await prisma.user.create({

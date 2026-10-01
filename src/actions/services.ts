@@ -105,19 +105,11 @@ export async function deleteServiceAction(id: string): Promise<ActionResult<{ id
     const existing = await getService(user.centerId, id);
     if (!existing) throw new AppError('NOT_FOUND', 'Service introuvable');
 
+    // Registrations and invoices keep the service id, so a service is never
+    // really deleted: the row is deactivated and stays listed with a restore
+    // button. The group count is only recorded in the audit trail to explain the
+    // deactivation, which is why `deactivated` is always true here.
     const groups = await prisma.group.count({ where: { serviceId: existing.id } });
-    if (groups > 0) {
-      await prisma.service.update({ where: { id: existing.id }, data: { active: false } });
-      await recordChange({
-        user,
-        action: 'DELETE',
-        entity: 'Service',
-        entityId: existing.id,
-        metadata: { code: existing.code, soft: true, reason: 'deactivated', groups },
-      });
-      revalidateServices();
-      return ok({ id: existing.id, deactivated: true });
-    }
 
     await prisma.service.update({ where: { id: existing.id }, data: { active: false } });
     await recordChange({
@@ -125,7 +117,7 @@ export async function deleteServiceAction(id: string): Promise<ActionResult<{ id
       action: 'DELETE',
       entity: 'Service',
       entityId: existing.id,
-      metadata: { code: existing.code, soft: true, reason: 'deactivated' },
+      metadata: { code: existing.code, soft: true, reason: 'deactivated', groups },
     });
 
     revalidateServices();

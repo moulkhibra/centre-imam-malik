@@ -20,7 +20,7 @@ import { DataTable, ListToolbar, Pagination, type Column, type ToolbarFilter } f
 import { deleteServiceAction } from '@/actions/services';
 import { restoreCatalogItemAction } from '@/actions/subjects';
 import { ServiceForm } from '@/components/catalog/ServiceForm';
-import { listHref, type PageInfo, type SortDirection } from '@/lib/lists';
+import { listHref, type PageInfo } from '@/lib/lists';
 import type {
   CatalogFilterState,
   CatalogListState,
@@ -294,7 +294,6 @@ export function ServicesView({
           page: labels.page,
           of: labels.of,
           showing: labels.showing,
-          to: labels.to,
         }}
       />
 

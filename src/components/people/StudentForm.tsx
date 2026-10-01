@@ -259,7 +259,7 @@ export function StudentForm({
             dir="ltr"
             invalid={invalid('gender')}
           >
-            <option value="">{labels.all}</option>
+            <option value="">{labels.none}</option>
             {Object.keys(genderLabels).map((value) => (
               <option key={value} value={value}>
                 {genderLabels[value]}
@@ -275,7 +275,7 @@ export function StudentForm({
             defaultValue={values.levelId}
             invalid={invalid('levelId')}
           >
-            <option value="">{labels.all}</option>
+            <option value="">{labels.none}</option>
             {levelOptions.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.label}

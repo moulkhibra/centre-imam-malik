@@ -78,6 +78,24 @@ function isPrismaKnownError(error: unknown): error is { code: string; meta?: Rec
 }
 
 /**
+ * Recognises an authorization failure without importing `@/lib/auth/permissions`.
+ *
+ * That module pulls Prisma and the session helpers into the graph, and this one
+ * is imported from places that must stay free of both. `AuthError` is identified
+ * by its own name and by a `code` drawn from `ErrorCode`, which is also why it
+ * has to be tested *before* `isPrismaKnownError`: it carries a string `code`, so
+ * the Prisma sniff would otherwise claim it and report a permission failure as
+ * "Une erreur interne est survenue".
+ */
+function isAuthorizationError(
+  error: unknown,
+): error is { code: 'UNAUTHENTICATED' | 'FORBIDDEN' } {
+  if (!(error instanceof Error) || error.name !== 'AuthError') return false;
+  const code = (error as { code?: unknown }).code;
+  return code === 'UNAUTHENTICATED' || code === 'FORBIDDEN';
+}
+
+/**
  * Converts any thrown value into a safe `ActionResult`.
  * Must be used at the boundary of every Server Action / route handler.
  */
@@ -89,6 +107,13 @@ export function handleError(error: unknown, context?: string): ActionResult<neve
   if (error instanceof z.ZodError) {
     const appError = validationError(error);
     return fail(appError.message, appError.code, appError.fieldErrors);
+  }
+
+  // An authorization failure is an expected outcome, not a bug: the user is
+  // signed in but lacks the permission, so it gets the matching domain message
+  // and is never logged as a server error.
+  if (isAuthorizationError(error)) {
+    return fail(DOMAIN_MESSAGE_BY_CODE[error.code], error.code);
   }
 
   if (isPrismaKnownError(error)) {

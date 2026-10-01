@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CURRENT_PHASE, NAV_SECTIONS, visibleNavItems, visibleNavSections } from '@/lib/navigation';
+import { CURRENT_PHASE, NAV_SECTIONS, isRouteAvailable, visibleNavItems, visibleNavSections } from '@/lib/navigation';
 import { PERMISSIONS } from '@/lib/constants';
 
 const APP_DIR = path.join(process.cwd(), 'src', 'app');
@@ -78,5 +78,64 @@ describe('navigation manifest', () => {
     for (const section of visibleNavSections()) {
       expect(section.items.length).toBeGreaterThan(0);
     }
+  });
+});
+
+/**
+ * Phase 2 scope.
+ *
+ * These assertions pin down exactly what the phase delivered, and are meant to
+ * be edited deliberately when the next phase starts: they fail loudly if a
+ * screen is shipped without being wired into the sidebar, or if a deferred
+ * screen becomes visible before its page exists.
+ */
+describe('phase 2 delivery', () => {
+  const SHIPPED = ['/students', '/parents', '/teachers', '/settings/academics', '/settings/services', '/settings/rooms'];
+
+  /** Deferred to the administration block: declared, but no screen yet. */
+  const DEFERRED = ['/admin/users', '/settings'];
+
+  it('marks phase 2 as implemented', () => {
+    expect(CURRENT_PHASE).toBe(2);
+  });
+
+  it('exposes every Phase 2 screen in the sidebar', () => {
+    const visible = visibleNavItems().map((item) => item.href);
+    for (const href of SHIPPED) expect(visible, `${href} must be reachable`).toContain(href);
+  });
+
+  it('keeps the deferred administration screens out', () => {
+    // User management and centre settings were part of the original Phase 2
+    // roadmap but have no page; they stay invisible until one does, which the
+    // route-existence tests above enforce.
+    const visible = visibleNavItems().map((item) => item.href);
+    for (const href of DEFERRED) expect(visible, `${href} has no page yet`).not.toContain(href);
+  });
+
+  it('never shows a Phase 3+ screen', () => {
+    for (const item of visibleNavItems()) {
+      expect(item.phase, `${item.key} is a future phase`).toBeLessThanOrEqual(CURRENT_PHASE);
+    }
+  });
+
+  it('reports the shipped screens as available to the dashboard', () => {
+    for (const href of SHIPPED) expect(isRouteAvailable(href)).toBe(true);
+    for (const href of DEFERRED) expect(isRouteAvailable(href)).toBe(false);
+  });
+
+  it('reports the academics sub-screens of a deferred route as unavailable too', () => {
+    // `/settings` has no page, and because `isRouteAvailable` matches on the
+    // prefix, nothing under /settings may leak through it.
+    expect(isRouteAvailable('/settings/academics')).toBe(true);
+    expect(isRouteAvailable('/settings/unknown')).toBe(false);
+  });
+
+  it('groups the catalogue under one section', () => {
+    const catalog = visibleNavSections().find((section) => section.key === 'catalog');
+    expect(catalog?.items.map((item) => item.href)).toEqual([
+      '/settings/academics',
+      '/settings/services',
+      '/settings/rooms',
+    ]);
   });
 });

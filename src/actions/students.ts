@@ -7,7 +7,7 @@ import { recordChange, diffFields } from '@/lib/audit';
 import { AppError, handleError, ok, type ActionResult } from '@/lib/utils/errors';
 import { studentCreateSchema, studentUpdateSchema, type StudentInput } from '@/lib/validation/people';
 import { getStudent } from '@/lib/people/queries';
-import { nextCode, parseForm, toDate } from '@/lib/action-utils';
+import { nextCode, parseForm, requireConfirmation, toDate } from '@/lib/action-utils';
 
 /**
  * Student mutations.
@@ -169,9 +169,7 @@ export async function deleteStudentAction(
     const existing = await getStudent(user.centerId, id);
     if (!existing) throw new AppError('NOT_FOUND', 'Élève introuvable');
 
-    if (!confirmCode.trim()) {
-      throw new AppError('VALIDATION', 'Confirmation requise', { confirmCode: ['Saisissez le code pour confirmer'] });
-    }
+    requireConfirmation(existing, confirmCode);
 
     await prisma.student.update({
       where: { id: existing.id },

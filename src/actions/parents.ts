@@ -7,7 +7,7 @@ import { recordChange, diffFields } from '@/lib/audit';
 import { AppError, handleError, ok, type ActionResult } from '@/lib/utils/errors';
 import { parentCreateSchema, parentUpdateSchema } from '@/lib/validation/people';
 import { getParent } from '@/lib/people/queries';
-import { nextCode, parseForm } from '@/lib/action-utils';
+import { nextCode, parseForm, requireConfirmation } from '@/lib/action-utils';
 
 /**
  * Parent mutations. Same contract as `src/actions/students.ts`: server-side
@@ -132,11 +132,7 @@ export async function deleteParentAction(id: string, confirmCode: string): Promi
     const existing = await getParent(user.centerId, id);
     if (!existing) throw new AppError('NOT_FOUND', 'Parent introuvable');
 
-    if (!confirmCode.trim()) {
-      throw new AppError('VALIDATION', 'Confirmation requise', {
-        confirmCode: ['Saisissez le code pour confirmer'],
-      });
-    }
+    requireConfirmation(existing, confirmCode);
 
     const linked = await prisma.studentParent.count({
       where: { parentId: existing.id, student: { deletedAt: null } },

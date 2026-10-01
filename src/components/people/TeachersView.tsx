@@ -328,7 +328,6 @@ export function TeachersView({
           page: labels.page,
           of: labels.of,
           showing: labels.showing,
-          to: labels.to,
         }}
       />
 

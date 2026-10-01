@@ -269,6 +269,21 @@ export function DataTable<T extends { id: string }>({
 
 // --- Pagination -------------------------------------------------------------
 
+/**
+ * Fills `{from}` / `{to}` / `{total}` in a translated sentence.
+ *
+ * The count is substituted here, in the Client Component, rather than by
+ * `t(path, vars)` on the server: the template crosses the boundary already
+ * resolved, and the client never imports the dictionaries. Interpolating keeps
+ * the sentence whole, which is what lets Arabic put the numbers where the
+ * language wants them instead of concatenating them onto the end.
+ */
+function interpolate(template: string, vars: Record<string, number>): string {
+  return template.replace(/\{(\w+)\}/g, (match, key: string) =>
+    key in vars ? String(vars[key]) : match,
+  );
+}
+
 export function Pagination({
   basePath,
   pagination,
@@ -282,7 +297,7 @@ export function Pagination({
   current: { sort: string; dir: SortDirection; pageSize: number };
   q: string;
   filter?: Record<string, unknown>;
-  labels: { previous: string; next: string; page: string; of: string; showing: string; to: string };
+  labels: { previous: string; next: string; page: string; of: string; showing: string };
 }) {
   const href = (page: number) =>
     listHref(basePath, { page, q, sort: current.sort, dir: current.dir, pageSize: current.pageSize, filter });
@@ -293,9 +308,11 @@ export function Pagination({
   return (
     <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
       <p className="text-xs text-ink-500">
-        {pagination.total === 0
-          ? labels.showing
-          : `${labels.showing} ${pagination.from} ${labels.to} ${pagination.to} / ${pagination.total}`}
+        {interpolate(labels.showing, {
+          from: pagination.from,
+          to: pagination.to,
+          total: pagination.total,
+        })}
       </p>
       <nav aria-label={labels.page} className="flex items-center gap-2">
         {pagination.page <= 1 ? (

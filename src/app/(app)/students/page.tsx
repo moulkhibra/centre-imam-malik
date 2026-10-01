@@ -120,6 +120,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Sea
     search: t('common.search'),
     reset: t('common.reset'),
     all: t('common.all'),
+    none: t('common.none'),
     noResults: t('common.noResults'),
     empty: t('students.empty'),
     emptySearch: t('students.emptySearch'),
@@ -145,9 +146,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Sea
     create: t('common.create'),
     save: t('common.save'),
     cancel: t('common.cancel'),
-    close: t('common.close'),
     confirm: t('common.confirm'),
-    required: t('common.required'),
     optional: t('common.optional'),
     whatsapp: t('students.whatsapp'),
     email: t('students.email'),
@@ -168,7 +167,6 @@ export default async function StudentsPage({ searchParams }: { searchParams: Sea
     page: t('common.page'),
     of: t('common.of'),
     showing: t('common.showing'),
-    to: t('common.to'),
   };
 
   return (

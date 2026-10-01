@@ -1,7 +1,17 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { collectPaths, createTranslator, dir, isRtl, textDirection } from '@/lib/i18n';
 import { ar } from '@/lib/i18n/dictionaries/ar';
 import { fr } from '@/lib/i18n/dictionaries/fr';
+import {
+  ACADEMIC_STAGES,
+  ACADEMIC_STAGE_LABELS,
+  GENDERS,
+  ROOM_STATUSES,
+  STUDENT_STATUSES,
+  STUDENT_STATUS_LABELS,
+} from '@/lib/constants';
 
 describe('locale direction', () => {
   it('switches to RTL for Arabic and back for French', () => {
@@ -57,5 +67,84 @@ describe('translation dictionaries', () => {
   it('contains real Arabic characters, not transliterated placeholders', () => {
     const arabic = [...tAr('nav.students'), ...tAr('finance.payments'), ...tAr('common.save')].join('');
     expect(arabic).toMatch(/[\u0600-\u06FF]/);
+  });
+
+  it('defines a label for every value of every closed set', () => {
+    // These four are resolved by dynamic path (`common.statusValues.${value}`),
+    // so no compiler and no dictionary parity check can see a missing member.
+    for (const value of STUDENT_STATUSES) expect(t(`common.statusValues.${value}`)).not.toBe(`common.statusValues.${value}`);
+    for (const value of GENDERS) expect(t(`common.genderValues.${value}`)).not.toBe(`common.genderValues.${value}`);
+    for (const value of ACADEMIC_STAGES) expect(t(`common.stageValues.${value}`)).not.toBe(`common.stageValues.${value}`);
+    for (const value of ROOM_STATUSES) expect(t(`common.roomStatusValues.${value}`)).not.toBe(`common.roomStatusValues.${value}`);
+  });
+
+  it('agrees with the label maps in constants.ts, which the PDF layer also uses', () => {
+    // Two label sources exist for the same words; this is what keeps them from
+    // drifting apart silently.
+    for (const value of ACADEMIC_STAGES) {
+      expect(t(`common.stageValues.${value}`)).toBe(ACADEMIC_STAGE_LABELS[value].fr);
+      expect(tAr(`common.stageValues.${value}`)).toBe(ACADEMIC_STAGE_LABELS[value].ar);
+    }
+    for (const value of STUDENT_STATUSES) {
+      expect(t(`common.statusValues.${value}`)).toBe(STUDENT_STATUS_LABELS[value].fr);
+      expect(tAr(`common.statusValues.${value}`)).toBe(STUDENT_STATUS_LABELS[value].ar);
+    }
+  });
+
+  it('keeps the same placeholder names in both languages', () => {
+    // A template whose placeholders differ per locale would silently drop a
+    // count in Arabic, because the view interpolates the names it knows.
+    const placeholders = (value: string) => [...value.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
+    for (const key of [...collectPaths(fr)].filter((k) => /\{/.test(resolve(fr, k) ?? ''))) {
+      expect(placeholders(resolve(ar, key) ?? ''), `placeholders differ for ${key}`).toEqual(placeholders(resolve(fr, key) ?? ''));
+    }
+  });
+});
+
+/** Reads a dotted path out of a dictionary; used by the placeholder comparison. */
+function resolve(dict: unknown, dotted: string): string | undefined {
+  let current: unknown = dict;
+  for (const segment of dotted.split('.')) {
+    if (current === null || typeof current !== 'object') return undefined;
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return typeof current === 'string' ? current : undefined;
+}
+
+describe('translation keys used by the application', () => {
+  const SRC = path.join(process.cwd(), 'src');
+
+  function sourceFiles(dir: string): string[] {
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) return sourceFiles(full);
+      return /\.tsx?$/.test(full) ? [full] : [];
+    });
+  }
+
+  /**
+   * Every statically written `t('...')` call in the tree.
+   *
+   * This is the guard the interrupted session was missing: a screen added with
+   * its labels forgotten renders raw keys such as `students.title`, and nothing
+   * else in the build fails - `t()` returns the path, and the Arabic parity
+   * check passes because the key is absent from *both* dictionaries.
+   */
+  it('resolves to a real translation in both languages', () => {
+    const frPaths = collectPaths(fr);
+    const arPaths = collectPaths(ar);
+    const missing: string[] = [];
+
+    for (const file of sourceFiles(SRC)) {
+      const source = fs.readFileSync(file, 'utf8');
+      for (const match of source.matchAll(/\bt\(\s*['"]([a-zA-Z0-9_.]+)['"]/g)) {
+        const key = match[1];
+        if (key === undefined) continue;
+        if (!frPaths.has(key)) missing.push(`${key} (absent from fr) in ${path.relative(SRC, file)}`);
+        else if (!arPaths.has(key)) missing.push(`${key} (absent from ar) in ${path.relative(SRC, file)}`);
+      }
+    }
+
+    expect(missing).toEqual([]);
   });
 });

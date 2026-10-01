@@ -121,7 +121,9 @@ export function AcademicsView({
   const [flash, setFlash] = useState<Flash | null>(null);
 
   const tab = state.tab;
-  const { rows, pagination, query, filters } = state;
+  // `rows` is read through `levelRows` / `subjectRows` below: the union is
+  // narrowed by tab before any row is touched.
+  const { pagination, query, filters } = state;
   const languageMode = tab === 'languages';
   const isLevelTab = tab === 'levels';
 
@@ -179,6 +181,19 @@ export function AcademicsView({
 
   const levelRows: LevelRowView[] = state.tab === 'levels' ? state.rows : [];
   const subjectRows: SubjectRowView[] = state.tab === 'levels' ? [] : state.rows;
+
+  // The edit modal opens only when the server really sent that row's full
+  // record. Substituting blank create values would submit an empty form against
+  // a live level or subject, so a missing entry shows no modal at all - the same
+  // guard StudentsView and RoomsView use.
+  const editingLevelId = isLevelTab ? editingId : null;
+  const editingSubjectId = isLevelTab ? null : editingId;
+  // Narrowing on `state.tab` (not on `isLevelTab`) is what gives the two records
+  // their own value type instead of the union of both.
+  const levelEditValues =
+    state.tab === 'levels' && editingId ? state.editValues[editingId] : undefined;
+  const subjectEditValues =
+    state.tab !== 'levels' && editingId ? state.editValues[editingId] : undefined;
 
   const displayName = (row: LevelRowView | SubjectRowView) => row.nameAr || row.nameFr;
 
@@ -499,7 +514,6 @@ export function AcademicsView({
           page: labels.page,
           of: labels.of,
           showing: labels.showing,
-          to: labels.to,
         }}
       />
 
@@ -552,17 +566,17 @@ export function AcademicsView({
         </Modal>
       ) : null}
 
-      {editingId && state.tab === 'levels' ? (
+      {editingLevelId && levelEditValues ? (
         <Modal
           open
           onClose={() => setEditingId(null)}
-          title={`${labels.editLevel} · ${levelRows.find((row) => row.id === editingId)?.code ?? ''}`}
+          title={`${labels.editLevel} · ${levelRows.find((row) => row.id === editingLevelId)?.code ?? ''}`}
           size="lg"
         >
           <LevelForm
-            key={editingId}
-            recordId={editingId}
-            values={state.editValues[editingId] ?? LEVEL_CREATE_VALUES}
+            key={editingLevelId}
+            recordId={editingLevelId}
+            values={levelEditValues}
             stageLabels={stageLabels}
             labels={labels}
             onCancel={() => setEditingId(null)}
@@ -575,17 +589,17 @@ export function AcademicsView({
         </Modal>
       ) : null}
 
-      {editingId && state.tab !== 'levels' ? (
+      {editingSubjectId && subjectEditValues ? (
         <Modal
           open
           onClose={() => setEditingId(null)}
-          title={`${editLabel} · ${subjectRows.find((row) => row.id === editingId)?.code ?? ''}`}
+          title={`${editLabel} · ${subjectRows.find((row) => row.id === editingSubjectId)?.code ?? ''}`}
           size="lg"
         >
           <SubjectForm
-            key={`${tab}-${editingId}`}
-            recordId={editingId}
-            values={state.editValues[editingId] ?? SUBJECT_CREATE_VALUES}
+            key={`${tab}-${editingSubjectId}`}
+            recordId={editingSubjectId}
+            values={subjectEditValues}
             languageMode={languageMode}
             categoryOptions={categoryOptions}
             labels={labels}
@@ -668,7 +682,6 @@ function CatalogToolbar({
 }) {
   const router = useRouter();
 
-  const filterWithTab: Record<string, unknown> = { ...filters, tab };
   const hasFilters = Boolean(
     q || (filters.active && filters.active !== 'ALL') || filters.stage,
   );
@@ -786,7 +799,6 @@ function DeleteCatalogDialog({
 }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
-  const [fieldErrors] = useState<FieldErrorMap>({});
 
   const submit = async () => {
     setPending(true);
@@ -835,7 +847,6 @@ function DeleteCatalogDialog({
             </>
           ) : null}
         </p>
-        {fieldErrors._form?.[0] ? <p className="text-xs text-danger-600">{fieldErrors._form[0]}</p> : null}
       </div>
     </Modal>
   );

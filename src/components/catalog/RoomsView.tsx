@@ -302,7 +302,6 @@ export function RoomsView({
           page: labels.page,
           of: labels.of,
           showing: labels.showing,
-          to: labels.to,
         }}
       />
 

@@ -14,6 +14,7 @@ import {
   IconFolder,
   IconLayers,
   IconReceipt,
+  IconRoom,
   IconSettings,
   IconShield,
   IconTeacher,
@@ -49,8 +50,16 @@ export type NavSection = {
   items: NavItem[];
 };
 
-/** Highest delivery phase currently implemented. Bumped by each phase. */
-export const CURRENT_PHASE = 1;
+/**
+ * Highest delivery phase currently implemented. Bumped by each phase.
+ *
+ * Phase 2 ships the people screens (students, parents, teachers) and the
+ * reference catalogue (levels, subjects, languages, services, rooms). User
+ * management and centre settings are declared in the manifest but have no
+ * screen yet, so they carry a later phase and stay invisible - see the note on
+ * the `admin` section.
+ */
+export const CURRENT_PHASE = 2;
 
 export const NAV_SECTIONS: NavSection[] = [
   {
@@ -70,6 +79,15 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    key: 'catalog',
+    labelKey: 'nav.catalog',
+    items: [
+      { key: 'academics', href: '/settings/academics', labelKey: 'nav.academics', icon: IconBook, permission: 'academics.view', phase: 2 },
+      { key: 'services', href: '/settings/services', labelKey: 'nav.services', icon: IconCash, permission: 'academics.view', phase: 2 },
+      { key: 'rooms', href: '/settings/rooms', labelKey: 'nav.rooms', icon: IconRoom, permission: 'academics.view', phase: 2 },
+    ],
+  },
+  {
     key: 'academic',
     labelKey: 'nav.academic',
     items: [
@@ -77,7 +95,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: 'registrations', href: '/registrations', labelKey: 'nav.registrations', icon: IconClipboard, permission: 'registrations.view', phase: 3 },
       { key: 'schedule', href: '/schedule', labelKey: 'nav.schedule', icon: IconCalendar, permission: 'schedules.view', phase: 3 },
       { key: 'attendance', href: '/attendance', labelKey: 'nav.attendance', icon: IconCheck, permission: 'attendance.view', phase: 4 },
-      { key: 'academics', href: '/settings/academics', labelKey: 'nav.subjects', icon: IconBook, permission: 'academics.view', phase: 2 },
     ],
   },
   {
@@ -105,10 +122,15 @@ export const NAV_SECTIONS: NavSection[] = [
     labelKey: 'nav.administration',
     items: [
       { key: 'notifications', href: '/notifications', labelKey: 'notifications.title', icon: IconBell, permission: 'notifications.view', phase: 10 },
-      { key: 'users', href: '/admin/users', labelKey: 'nav.users', icon: IconUsers, permission: 'users.view', phase: 2 },
+      // No screen exists yet for users or centre settings. They stay declared so
+      // the roadmap is written down, but the phase keeps them out of the sidebar
+      // and tests/unit/navigation.test.ts fails the day one becomes visible
+      // without its page. Phase 2 shipped the people and catalogue screens only;
+      // these two were deferred to the administration block.
+      { key: 'users', href: '/admin/users', labelKey: 'nav.users', icon: IconUsers, permission: 'users.view', phase: 13 },
       { key: 'audit', href: '/admin/audit', labelKey: 'nav.auditLog', icon: IconDatabase, permission: 'audit.view', phase: 13 },
       { key: 'backup', href: '/admin/backup', labelKey: 'nav.backup', icon: IconDatabase, permission: 'backups.view', phase: 12 },
-      { key: 'settings', href: '/settings', labelKey: 'nav.centerSettings', icon: IconSettings, permission: 'settings.view', phase: 2 },
+      { key: 'settings', href: '/settings', labelKey: 'nav.centerSettings', icon: IconSettings, permission: 'settings.view', phase: 13 },
     ],
   },
 ];

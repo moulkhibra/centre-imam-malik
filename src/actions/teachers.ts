@@ -7,7 +7,7 @@ import { recordChange, diffFields } from '@/lib/audit';
 import { AppError, handleError, ok, type ActionResult } from '@/lib/utils/errors';
 import { teacherCreateSchema, teacherUpdateSchema } from '@/lib/validation/people';
 import { getTeacher } from '@/lib/people/queries';
-import { nextCode, parseForm, toDate } from '@/lib/action-utils';
+import { nextCode, parseForm, requireConfirmation, toDate } from '@/lib/action-utils';
 
 /**
  * Teacher mutations.
@@ -138,17 +138,24 @@ export async function deleteTeacherAction(id: string, confirmCode: string): Prom
     const existing = await getTeacher(user.centerId, id);
     if (!existing) throw new AppError('NOT_FOUND', 'Enseignant introuvable');
 
-    if (!confirmCode.trim()) {
-      throw new AppError('VALIDATION', 'Confirmation requise', {
-        confirmCode: ['Saisissez le code pour confirmer'],
-      });
-    }
+    requireConfirmation(existing, confirmCode);
 
     const groups = await prisma.group.count({ where: { teacherId: existing.id } });
     if (groups > 0) {
       throw new AppError(
         'CONFLICT',
         `Cet enseignant est encore responsable de ${groups} groupe(s). Réaffectez-les avant de le supprimer.`,
+      );
+    }
+
+    // A scheduled slot is not a soft reference: `Schedule.teacherId` is ON DELETE
+    // SET NULL, so deleting the teacher would silently blank the holder of every
+    // session they teach. Refuse while any session is still theirs.
+    const sessions = await prisma.schedule.count({ where: { teacherId: existing.id } });
+    if (sessions > 0) {
+      throw new AppError(
+        'CONFLICT',
+        `Cet enseignant est encore affecté à ${sessions} séance(s) d'emploi du temps. Réaffectez-les avant de le supprimer.`,
       );
     }
 

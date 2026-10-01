@@ -285,6 +285,7 @@ export const IconUser = ({ className }: IconProps) => svg(<><path d="M19 20v-1.5
 export const IconTeacher = ({ className }: IconProps) => svg(<><path d="M3 21h18" /><path d="M6 21V9l6-5 6 5v12" /><path d="M10 21v-5h4v5" /></>, className);
 export const IconBook = ({ className }: IconProps) => svg(<><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" /><path d="M4 19a2 2 0 0 1 2-2h13" /></>, className);
 export const IconLayers = ({ className }: IconProps) => svg(<><path d="M12 3l9 5-9 5-9-5z" /><path d="M3 13l9 5 9-5" /><path d="M3 17.5l9 5 9-5" /></>, className);
+export const IconRoom = ({ className }: IconProps) => svg(<><path d="M4 21V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v17" /><path d="M15 12h4a1 1 0 0 1 1 1v8" /><path d="M3 21h18" /><path d="M7.5 12.5h.01" /></>, className);
 export const IconCalendar = ({ className }: IconProps) => svg(<><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></>, className);
 export const IconClipboard = ({ className }: IconProps) => svg(<><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1z" /><rect x="5" y="6" width="14" height="15" rx="2" /><path d="M9 12h6M9 16h4" /></>, className);
 export const IconWallet = ({ className }: IconProps) => svg(<><path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2" /><rect x="3" y="7" width="18" height="13" rx="2" /><circle cx="16" cy="13.5" r="1.3" /></>, className);

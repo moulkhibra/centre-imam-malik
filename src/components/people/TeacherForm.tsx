@@ -75,7 +75,6 @@ export type TeacherLabels = Pick<
   | 'create'
   | 'save'
   | 'cancel'
-  | 'close'
   | 'confirm'
   | 'optional'
   | 'notes'
@@ -91,7 +90,6 @@ export type TeacherLabels = Pick<
   | 'page'
   | 'of'
   | 'showing'
-  | 'to'
 > & {
   specialization: string;
   bio: string;

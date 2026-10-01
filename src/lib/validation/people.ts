@@ -116,13 +116,14 @@ export const studentCreateSchema = trimmed(
 
 export type StudentInput = z.infer<typeof studentCreateSchema>;
 
-/** Update accepts exactly the same fields; the action re-checks ownership. */
+/**
+ * Update accepts exactly the same fields; the action re-checks ownership.
+ *
+ * `firstName` / `lastName` stay mandatory here on purpose: an update that
+ * submitted neither would otherwise be able to blank both columns, so the schema
+ * itself is what refuses an all-blank form rather than a separate guard.
+ */
 export const studentUpdateSchema = studentCreateSchema;
-
-/** Empty patch = no change. Rejects an all-blank form instead of wiping data. */
-export function isEmptyStudent(input: Partial<StudentInput>): boolean {
-  return Object.values(input).every((value) => value === undefined || value === null || value === '');
-}
 
 // --- Parent -----------------------------------------------------------------
 

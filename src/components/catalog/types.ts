@@ -166,9 +166,7 @@ export type CatalogLabels = Pick<
   | 'create'
   | 'save'
   | 'cancel'
-  | 'close'
   | 'confirm'
-  | 'required'
   | 'optional'
   | 'deleteConfirm'
   | 'deleteConfirmHint'
@@ -182,7 +180,6 @@ export type CatalogLabels = Pick<
   | 'page'
   | 'of'
   | 'showing'
-  | 'to'
 > & {
   /** Badge label of an active row. */
   active: string;
@@ -235,7 +232,13 @@ export type ServiceLabels = CatalogLabels & {
   serviceActive: string;
 };
 
-export type RoomLabels = CatalogLabels & {
+/**
+ * A room is identified by its name only: the schema has no `code` column, so
+ * unlike levels, subjects and services there is nothing for the header to show.
+ * `code` is dropped rather than filled with a dummy translation, which would
+ * also force every caller to invent a string it never renders.
+ */
+export type RoomLabels = Omit<CatalogLabels, 'code'> & {
   name: string;
   capacity: string;
   location: string;

@@ -84,9 +84,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Sea
     create: t('common.create'),
     save: t('common.save'),
     cancel: t('common.cancel'),
-    close: t('common.close'),
     confirm: t('common.confirm'),
-    required: t('common.required'),
     optional: t('common.optional'),
     active: t('common.active'),
     inactive: t('common.inactive'),
@@ -103,7 +101,6 @@ export default async function ServicesPage({ searchParams }: { searchParams: Sea
     page: t('common.page'),
     of: t('common.of'),
     showing: t('common.showing'),
-    to: t('common.to'),
   };
 
   return (

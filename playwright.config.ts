@@ -29,6 +29,20 @@ export const E2E_STAFF = {
   role: 'SECRETARY',
 };
 
+/**
+ * Administrator for the Phase 2 suite, with no forced password change.
+ *
+ * `E2E_ADMIN` must complete its first-login password change, which permanently
+ * replaces its password and makes it unusable for any later test in the same
+ * run. Phase 2 needs an ADMIN (only ADMIN holds `academics.manage`) across
+ * fourteen tests, so it gets its own account rather than fighting over that one.
+ */
+export const E2E_PHASE2_ADMIN = {
+  email: 'e2e.phase2@example.test',
+  password: 'E2e!Phase2Admin2026',
+  role: 'ADMIN',
+};
+
 /** Account deliberately locked out by the failed-login test, and never used elsewhere. */
 export const E2E_LOCKOUT = {
   email: 'e2e.lockout@example.test',

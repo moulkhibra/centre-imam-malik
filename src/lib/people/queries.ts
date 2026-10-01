@@ -92,6 +92,45 @@ export type TeacherListRow = {
 
 // --- Where builders ---------------------------------------------------------
 
+/**
+ * Makes a search term safe to hand to Prisma's `contains`.
+ *
+ * `contains` compiles to `LIKE '%' || ? || '%'` and Prisma emits no
+ * `ESCAPE '\'` clause, so a backslash escape would be read as a literal
+ * backslash: escaping `a_b` to `a\_b` produced a pattern that matched only a
+ * row containing a real backslash. Wildcards are dropped instead, which keeps
+ * the term a plain substring and stops a stray `%` from matching every row.
+ */
+function stripLikeWildcards(q: string): string {
+  return q.replace(/[%_\\]/g, '');
+}
+
+/**
+ * The search predicate for a term, or `undefined` when the term cannot match.
+ *
+ * A term made only of wildcards (`q = '%'`) strips down to the empty string,
+ * and `contains: ''` matches every row - so pasting a stray `%` into the search
+ * box would dump the whole centre's students on screen. An empty `in` list is
+ * Prisma's way of expressing "nothing", which is the honest answer.
+ */
+/** The six columns a person is searched on. */
+const PERSON_SEARCH_FIELDS = ['firstName', 'lastName', 'code', 'cin', 'phone', 'email'] as const;
+
+/**
+ * The search predicate for a term.
+ *
+ * Typed against the shape the three person models share rather than against
+ * `StudentWhereInput`, because the same predicate is assigned to a `Parent` or
+ * `Teacher` query as well; the field names are identical on all three.
+ */
+type SearchPredicate = Array<Record<string, Record<string, unknown>>>;
+
+function searchTerm(q: string): SearchPredicate {
+  const term = stripLikeWildcards(q);
+  if (!term) return [{ id: { in: [] } }];
+  return PERSON_SEARCH_FIELDS.map((field) => ({ [field]: { contains: term } }));
+}
+
 function studentWhere(
   centerId: string,
   q: string,
@@ -103,19 +142,7 @@ function studentWhere(
   if (filter.gender && filter.gender !== 'ALL') where.gender = filter.gender;
   if (filter.level) where.levelId = filter.level;
 
-  if (q) {
-    // SQLite LIKE only substitutes wildcards in the pattern, so `%` and `_`
-    // typed by the user are escaped: the search stays a literal substring.
-    const term = q.replace(/[%_\\]/g, (char) => `\\${char}`);
-    where.OR = [
-      { firstName: { contains: term } },
-      { lastName: { contains: term } },
-      { code: { contains: term } },
-      { cin: { contains: term } },
-      { phone: { contains: term } },
-      { email: { contains: term } },
-    ];
-  }
+  if (q) where.OR = searchTerm(q);
 
   return where;
 }
@@ -123,17 +150,7 @@ function studentWhere(
 function parentWhere(centerId: string, q: string): Prisma.ParentWhereInput {
   const where: Prisma.ParentWhereInput = { centerId, deletedAt: null };
 
-  if (q) {
-    const term = q.replace(/[%_\\]/g, (char) => `\\${char}`);
-    where.OR = [
-      { firstName: { contains: term } },
-      { lastName: { contains: term } },
-      { code: { contains: term } },
-      { cin: { contains: term } },
-      { phone: { contains: term } },
-      { email: { contains: term } },
-    ];
-  }
+  if (q) where.OR = searchTerm(q);
 
   return where;
 }
@@ -147,18 +164,7 @@ function teacherWhere(
 
   if (filter.status && filter.status !== 'ALL') where.status = filter.status;
 
-  if (q) {
-    const term = q.replace(/[%_\\]/g, (char) => `\\${char}`);
-    where.OR = [
-      { firstName: { contains: term } },
-      { lastName: { contains: term } },
-      { code: { contains: term } },
-      { cin: { contains: term } },
-      { phone: { contains: term } },
-      { email: { contains: term } },
-      { specialization: { contains: term } },
-    ];
-  }
+  if (q) where.OR = searchTerm(q);
 
   return where;
 }
