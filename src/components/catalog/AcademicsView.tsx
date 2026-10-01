@@ -420,14 +420,6 @@ export function AcademicsView({
       title={tabTitle}
       description={labels.noData}
       icon={isLevelTab ? <IconLayers className="size-8" /> : <IconBook className="size-8" />}
-      action={
-        canManage ? (
-          <Button onClick={() => setCreateOpen(true)}>
-            <IconPlus className="size-4" />
-            {newLabel}
-          </Button>
-        ) : undefined
-      }
     />
   );
 

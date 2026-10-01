@@ -205,14 +205,6 @@ export function ParentsView({
       title={labels.empty}
       description={labels.subtitle}
       icon={<IconUser className="size-8" />}
-      action={
-        canCreate ? (
-          <Button onClick={() => setCreateOpen(true)}>
-            <IconPlus className="size-4" />
-            {labels.new}
-          </Button>
-        ) : undefined
-      }
     />
   );
 

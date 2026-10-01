@@ -92,7 +92,7 @@ export default async function RoomsPage({ searchParams }: { searchParams: Search
     edit: t('common.edit'),
     delete: t('common.delete'),
     restore: t('common.restore'),
-    create: t('common.create'),
+    create: t('room.newRoom'),
     save: t('common.save'),
     cancel: t('common.cancel'),
     confirm: t('common.confirm'),

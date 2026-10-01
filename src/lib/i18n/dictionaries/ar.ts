@@ -355,6 +355,7 @@ export const ar = {
   },
   service: {
     code: 'الرمز',
+    newService: 'خدمة جديدة',
     nameFr: 'الاسم (بالفرنسية)',
     nameAr: 'الاسم (بالعربية)',
     description: 'الوصف',
@@ -364,6 +365,7 @@ export const ar = {
   },
   room: {
     name: 'اسم القاعة',
+    newRoom: 'قاعة جديدة',
     capacity: 'الطاقة الاستيعابية',
     location: 'الموقع',
     equipment: 'التجهيزات',

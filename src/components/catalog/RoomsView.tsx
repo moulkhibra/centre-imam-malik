@@ -248,14 +248,6 @@ export function RoomsView({
       title={labels.title}
       description={labels.noData}
       icon={<IconBook className="size-8" />}
-      action={
-        canManage ? (
-          <Button onClick={() => setCreateOpen(true)}>
-            <IconPlus className="size-4" />
-            {labels.create}
-          </Button>
-        ) : undefined
-      }
     />
   );
 

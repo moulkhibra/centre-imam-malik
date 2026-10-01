@@ -357,6 +357,7 @@ export const fr = {
   },
   service: {
     code: 'Code',
+    newService: 'Nouveau service',
     nameFr: 'Nom (français)',
     nameAr: 'Nom (arabe)',
     description: 'Description',
@@ -366,6 +367,7 @@ export const fr = {
   },
   room: {
     name: 'Nom de la salle',
+    newRoom: 'Nouvelle salle',
     capacity: 'Capacité',
     location: 'Emplacement',
     equipment: 'Équipement',

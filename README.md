@@ -7,10 +7,12 @@ Interface **française et arabe** (bilingue, avec sens d'écriture RTL complet).
 Les documents officiels (reçus, attestations, factures, certificats) sont
 générés en PDF avec les deux langues sur la même page.
 
-**État : Phase 1 — fondation.** Le socle est livré et testé (voir
-[Phase 1](#phase-1--fondation)). Les modules métier seront ajoutés phase par
-phase ; tant qu'un écran n'existe pas, il n'apparaît nulle part dans l'interface
-(plutôt que d'y mettre un lien mort).
+**État : Phase 2 — personnes et catalogue.** Le socle est livré (voir
+[Phase 1](#phase-1--fondation)) et les écrans élèves, parents, enseignants,
+niveaux, matières, services et salles sont livrés (voir
+[Phase 2](#phase-2--personnes-et-catalogue)). Les modules restants seront
+ajoutés phase par phase ; tant qu'un écran n'existe pas, il n'apparaît nulle
+part dans l'interface (plutôt que d'y mettre un lien mort).
 
 ---
 
@@ -203,15 +205,54 @@ qui documente aussi la limite connue : un PDF se **lit**, il ne se parse pas.
 
 | Suite | Volume | Contenu |
 | --- | --- | --- |
-| Unitaires (Vitest) | 93 | formatage MAD, validation, permissions, navigation, dictionnaires |
-| Intégration (Vitest) | 42 | schéma et seed sur migrations réelles, authentification |
-| Bout en bout (Playwright) | 15 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide |
+| Unitaires (Vitest) | 147 | formatage MAD, validation, permissions, navigation, dictionnaires, erreurs, listes |
+| Intégration (Vitest) | 78 | schéma et seed sur migrations réelles, authentification, personnes, catalogue |
+| Bout en bout (Playwright) | 41 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide, phase 2 |
+
+---
+
+## Phase 2 — personnes et catalogue
+
+En cours sur `wip/phase-02`, non encore fusionnée dans `master`.
+
+### Écrans livrés
+
+- **Élèves** (`/students`), **parents** (`/parents`), **enseignants** (`/teachers`)
+  : liste, recherche, filtres, tri par colonne, pagination, création et
+  modification en boîte de dialogue, désactivation (suppression logique) avec
+  confirmation.
+- **Structure pédagogique** (`/settings/academics`) : niveaux, matières et
+  langues enseignées, par onglets.
+- **Services** (`/settings/services`) et **salles** (`/settings/rooms`).
+
+Toutes les listes partagent les mêmes briques (`src/components/list/index.tsx`).
+Chaque contrôle est un lien vers la même page avec d'autres paramètres de
+requête : rien n'est chargé dynamiquement, la vue est rendue côté serveur, le
+bouton « retour » fonctionne et une liste filtrée reste partageable par URL.
+
+### Ce qui est reporté
+
+Volontairement **non livré** dans cette phase, et donc **absent de la
+navigation** plutôt que présent sous forme de lien mort :
+
+| Écran | Raison | Navigation |
+| --- | --- | --- |
+| `/admin/users` (utilisateurs) | reporté à la phase 13 | `navigation.ts:130`, `phase: 13` |
+| `/settings` (paramètres du centre) | reporté à la phase 13 | `navigation.ts:133`, `phase: 13` |
+| `/admin/audit` (journal d'audit) | reporté à la phase 13 | `navigation.ts:131`, `phase: 13` |
+
+Le journal d'audit est **déjà écrit** : `src/lib/audit.ts` enregistre chaque
+mutation (`recordChange`/`diffFields`) dans les sept fichiers d'actions. Seule
+la lecture manque. Les liens absents sont vérifiés par un test de bout en bout.
+
+`e2e/phase2.spec.ts:99` échoue si `/admin/users` ou `/settings` réapparaît dans
+la barre latérale, donc ce report est tenu par un test et non par une
+convention.
 
 ---
 
 ## Prochaines phases
 
-2. Élèves, parents, enseignants, utilisateurs, paramètres
 3. Groupes, inscriptions, emplois du temps
 4. Présences et justifications
 5. Finances : facturation, paiements, reçus, caisse, dépenses
@@ -222,4 +263,4 @@ qui documente aussi la limite connue : un PDF se **lit**, il ne se parse pas.
 10. Notifications
 11. Traduction arabe complète du contenu dynamique
 12. Sauvegardes et restauration automatisées
-13. Journal d'audit et cloisonnement par centre
+13. Journal d'audit (lecture), utilisateurs et paramètres du centre

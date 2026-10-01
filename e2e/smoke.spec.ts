@@ -294,7 +294,12 @@ test.describe('RTL layout', () => {
 
     // Chrome strings around the navigation must follow the language too.
     await expect(sidebar(page)).toHaveAttribute('aria-label', /التنقل الرئيسي/);
-    await expect(page.locator('aside p').last()).toHaveText(/تدبير المركز/);
+    // The sidebar footer, not a section header. `aside p` used to be read with
+    // `.last()`, which only reached the footer because Phase 1 had a single
+    // section and therefore no header to land on; Phase 2 added titled sections,
+    // whose `<p>` elements now come last. Section headers live inside `nav`, so
+    // excluding them pins the assertion to the footer for good.
+    await expect(page.locator('aside p:not(nav p)').last()).toHaveText(/تدبير المركز/);
 
     // The first entry is the active route and is clickable.
     const first = sidebar(page).locator('nav a').first();

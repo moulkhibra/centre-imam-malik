@@ -81,7 +81,7 @@ export default async function ServicesPage({ searchParams }: { searchParams: Sea
     edit: t('common.edit'),
     delete: t('common.delete'),
     restore: t('common.restore'),
-    create: t('common.create'),
+    create: t('service.newService'),
     save: t('common.save'),
     cancel: t('common.cancel'),
     confirm: t('common.confirm'),

@@ -16,6 +16,15 @@ import { E2E_PHASE2_ADMIN } from '../playwright.config';
  *
  * The suite runs serially (`workers: 1`), and each test creates its own records
  * with a unique suffix, so order does not matter and no test can see another's.
+ *
+ * A note on `getByLabel` and the required-field marker: `Label`
+ * (`src/components/ui/index.tsx`) renders a required field as
+ * `<label>Prénom<span aria-hidden="true">*</span></label>`. The `aria-hidden`
+ * keeps the star out of the *accessible name*, so the input is announced as
+ * "Prénom", but `getByLabel` matches the label's text content, which still
+ * carries it. Anchored label regexes therefore allow one optional trailing
+ * star (`/^prénom\s*\*?$/i`). The anchors stay: without them the pattern would
+ * also match "Prénom (arabe)", which is a different field.
  */
 
 /** FR and AR headings for the same screen. */
@@ -58,6 +67,19 @@ async function signInAsAdmin(page: Page): Promise<void> {
 /** A per-test marker so records from different runs and tests stay distinct. */
 function unique(): string {
   return `E2E${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`;
+}
+
+/**
+ * A letters-only marker, for the fields validated as a person's name.
+ *
+ * `unique()` carries digits, and `LATIN_NAME` in `src/lib/validation/people.ts`
+ * admits only letters, spaces and punctuation - so a first or last name built
+ * from `unique()` is rejected by the very validation this suite is here to
+ * exercise, and no row ever appears. Codes take `unique()` unchanged; the
+ * Arabic names take it too, because `firstNameAr` is free text.
+ */
+function nameTag(): string {
+  return unique().replace(/[^a-z]/gi, '');
 }
 
 async function search(page: Page, term: string): Promise<void> {
@@ -114,22 +136,24 @@ test.describe('student registration through the UI', () => {
 
   test('creates a student, sees them in the table, then soft-deletes them', async ({ page }) => {
     const tag = unique();
+    const name = nameTag();
     const code = `ELE-${tag}`;
 
     await page.goto('/students');
     await page.getByRole('button', { name: /nouvel élève/i }).click();
     await page.getByLabel(/^code élève/i).fill(code);
-    await page.getByLabel(/^prénom\s*$/i).fill(`Amine${tag}`);
-    await page.getByLabel(/^nom\s*$/i).fill(`El Amrani${tag}`);
+    await page.getByLabel(/^prénom\s*\*?$/i).fill(`Amine${name}`);
+    // Anchored, so it cannot land on "Téléphone (Contact d'urgence)".
+    await page.getByLabel(/^téléphone\s*\*?$/i).fill('06 37 06 52 18');
+    await page.getByLabel(/^nom\s*\*?$/i).fill(`El Amrani${name}`);
     await page.getByLabel(/cin/i).fill('AB123456');
-    await page.getByLabel(/téléphone/i).fill('06 37 06 52 18');
     await page.getByRole('button', { name: /^(créer|enregistrer)/i }).click();
 
     // The dialog closes and the row is on screen: the round trip through the
     // action, the revalidation and the query all worked.
     const row = page.getByRole('row').filter({ hasText: code });
     await expect(row).toBeVisible();
-    await expect(row).toContainText(`Amine${tag}`);
+    await expect(row).toContainText(`Amine${name}`);
 
     // Searching finds exactly that row, which also proves the term reaches the
     // query as a substring rather than being dropped by the form.
@@ -158,7 +182,7 @@ test.describe('student registration through the UI', () => {
 
     await expect(errorAlert(page)).toBeVisible();
     // Still on the form: the dialog must not close over a rejected submission.
-    await expect(page.getByLabel(/^prénom\s*$/i)).toBeVisible();
+    await expect(page.getByLabel(/^prénom\s*\*?$/i)).toBeVisible();
   });
 
   test('keeps the form usable in Arabic and submits from RTL', async ({ page }) => {
@@ -173,7 +197,9 @@ test.describe('student registration through the UI', () => {
     await page.getByRole('button', { name: 'تلميذ جديد' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.getByLabel('رمز التلميذ').fill(code);
-    await page.getByLabel('الاسم الشخصي', { exact: true }).fill(`أمين${tag}`);
+    // Anchored, and tolerant of the required marker, like the French labels
+    // above: `exact: true` against the bare word would miss "الاسم الشخصي*".
+    await page.getByLabel(/^الاسم الشخصي\s*\*?$/).fill(`أمين${tag}`);
     await page.getByLabel('الاسم العائلي').fill(`الامراني${tag}`);
     await page.getByRole('button', { name: /^(إنشاء|حفظ)/ }).click();
 
@@ -197,9 +223,12 @@ test.describe('catalogue through the UI', () => {
 
     // Levels tab.
     await page.getByRole('button', { name: /nouveau niveau/i }).click();
-    await page.getByLabel(/^code/i).fill(levelCode);
-    await page.getByLabel(/cycle/i).selectOption('PRIMAIRE');
-    await page.getByLabel(/nom \(français\)/i).fill(`Niveau ${tag}`);
+    // Scoped to the dialog: the toolbar carries its own "Cycle" filter, so an
+    // unscoped `getByLabel(/cycle/i)` matches the filter and the form at once.
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel(/^code/i).fill(levelCode);
+    await dialog.getByLabel(/^cycle/i).selectOption('PRIMAIRE');
+    await dialog.getByLabel(/nom \(français\)/i).fill(`Niveau ${tag}`);
     await page.getByRole('button', { name: /^(créer|enregistrer)/i }).click();
     await expect(page.getByRole('row').filter({ hasText: levelCode })).toBeVisible();
 
@@ -208,8 +237,8 @@ test.describe('catalogue through the UI', () => {
     await page.locator('main nav').getByRole('link', { name: 'Matières', exact: true }).click();
     const subjectCode = `MAT-${tag}`;
     await page.getByRole('button', { name: /nouvelle matière/i }).click();
-    await page.getByLabel(/^code/i).fill(subjectCode);
-    await page.getByLabel(/nom \(français\)/i).fill(`Matière ${tag}`);
+    await page.getByRole('dialog').getByLabel(/^code/i).fill(subjectCode);
+    await page.getByRole('dialog').getByLabel(/nom \(français\)/i).fill(`Matière ${tag}`);
     await page.getByRole('button', { name: /^(créer|enregistrer)/i }).click();
     await expect(page.getByRole('row').filter({ hasText: subjectCode })).toBeVisible();
     await expect(page.getByRole('row').filter({ hasText: levelCode })).toHaveCount(0);
@@ -225,16 +254,16 @@ test.describe('catalogue through the UI', () => {
     await page.goto('/settings/services');
     const serviceCode = `SRV-${tag}`;
     await page.getByRole('button', { name: /nouveau service/i }).click();
-    await page.getByLabel(/^code/i).fill(serviceCode);
-    await page.getByLabel(/nom \(français\)/i).fill(`Service ${tag}`);
+    await page.getByRole('dialog').getByLabel(/^code/i).fill(serviceCode);
+    await page.getByRole('dialog').getByLabel(/nom \(français\)/i).fill(`Service ${tag}`);
     await page.getByRole('button', { name: /^(créer|enregistrer)/i }).click();
     await expect(page.getByRole('row').filter({ hasText: serviceCode })).toBeVisible();
 
     await page.goto('/settings/rooms');
     const roomName = `Salle ${tag}`;
     await page.getByRole('button', { name: /nouvelle salle/i }).click();
-    await page.getByLabel(/nom de la salle/i).fill(roomName);
-    await page.getByLabel(/capacité/i).fill('30');
+    await page.getByRole('dialog').getByLabel(/nom de la salle/i).fill(roomName);
+    await page.getByRole('dialog').getByLabel(/capacité/i).fill('30');
     await page.getByRole('button', { name: /^(créer|enregistrer)/i }).click();
     const roomRow = page.getByRole('row').filter({ hasText: roomName });
     await expect(roomRow).toBeVisible();
@@ -250,9 +279,10 @@ test.describe('catalogue through the UI', () => {
     const tag = unique();
     await page.goto('/settings/academics');
     await page.getByRole('button', { name: /nouveau niveau/i }).click();
-    await page.getByLabel(/^code/i).fill(`NIV-${tag}`);
-    await page.getByLabel(/cycle/i).selectOption('LYCEE');
-    await page.getByLabel(/nom \(français\)/i).fill(`Lycee ${tag}`);
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel(/^code/i).fill(`NIV-${tag}`);
+    await dialog.getByLabel(/^cycle/i).selectOption('LYCEE');
+    await dialog.getByLabel(/nom \(français\)/i).fill(`Lycee ${tag}`);
     await page.getByRole('button', { name: /^(créer|enregistrer)/i }).click();
 
     const code = `NIV-${tag}`;
@@ -283,14 +313,18 @@ test.describe('list behaviour through the UI', () => {
 
   test('sorts by a column header and keeps the sort through a search', async ({ page }) => {
     const tag = unique();
-    for (const name of ['Zeta', 'Alpha', 'Mid'] as const) {
+    // The names sort by letter, so they cannot carry `tag`'s digits: `LATIN_NAME`
+    // would reject them and the rows would never be created. The shared suffix
+    // keeps the three rows adjacent under the same search.
+    const name = nameTag();
+    for (const first of ['Zeta', 'Alpha', 'Mid'] as const) {
       await page.goto('/students');
       await page.getByRole('button', { name: /nouvel élève/i }).click();
-      await page.getByLabel(/^code élève/i).fill(`ELE-${tag}-${name}`);
-      await page.getByLabel(/^prénom\s*$/i).fill(`${name}${tag}`);
-      await page.getByLabel(/^nom\s*$/i).fill(`${name}${tag}`);
+      await page.getByLabel(/^code élève/i).fill(`ELE-${tag}-${first}`);
+      await page.getByLabel(/^prénom\s*\*?$/i).fill(`${first}${name}`);
+      await page.getByLabel(/^nom\s*\*?$/i).fill(`${first}${name}`);
       await page.getByRole('button', { name: /^(créer|enregistrer)/i }).click();
-      await expect(page.getByRole('row').filter({ hasText: `ELE-${tag}-${name}` })).toBeVisible();
+      await expect(page.getByRole('row').filter({ hasText: `ELE-${tag}-${first}` })).toBeVisible();
     }
 
     await page.goto(`/students?q=${tag}`);
@@ -343,12 +377,20 @@ test.describe('Phase 2 in Arabic RTL', () => {
     expect(box).not.toBeNull();
     expect(box!.x + box!.width).toBeGreaterThan(1280 / 2);
 
-    // A data table starts at the right edge, not the left.
+    // A data table mirrors its column order: the first column is the rightmost
+    // one. The table's own box cannot prove this - it is `w-full`, so it starts
+    // at the container's left edge in both directions. Only the cells mirror.
     await page.goto('/settings/academics');
-    const table = page.locator('main table').first();
-    if (await table.count()) {
-      const tableBox = await table.boundingBox();
-      expect(tableBox!.x).toBeGreaterThan(1280 / 4);
+    const headers = page.locator('main table thead th');
+    if (await headers.count()) {
+      const firstHeader = (await headers.first().boundingBox())!;
+      const lastHeader = (await headers.last().boundingBox())!;
+      expect(firstHeader.x, 'the first column must be the rightmost in RTL').toBeGreaterThan(lastHeader.x);
+      // The header must align to the *logical* start, not a hardcoded left, so
+      // the alignment follows the writing direction in both languages. Asserting
+      // `start` rather than `right` is the stronger check: it also fails on a
+      // `text-left` that would look correct in French.
+      await expect(headers.first()).toHaveCSS('text-align', 'start');
     }
   });
 });

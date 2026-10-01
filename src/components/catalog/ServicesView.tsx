@@ -240,14 +240,6 @@ export function ServicesView({
       title={labels.title}
       description={labels.noData}
       icon={<IconCash className="size-8" />}
-      action={
-        canManage ? (
-          <Button onClick={() => setCreateOpen(true)}>
-            <IconPlus className="size-4" />
-            {labels.create}
-          </Button>
-        ) : undefined
-      }
     />
   );
 
