@@ -214,11 +214,11 @@ phase) :
 
 | Suite | Volume | Contenu |
 | --- | --- | --- |
-| Unitaires (Vitest) | 151 | formatage MAD, validation, permissions, navigation, dictionnaires, erreurs, listes |
+| Unitaires (Vitest) | 251 | formatage MAD, validation, permissions, navigation, dictionnaires, erreurs, listes |
 | Intégration (Vitest) | 77 | schéma et seed sur migrations réelles, authentification, personnes, catalogue |
-| Bout en bout (Playwright) | 35 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide, phase 2 |
+| Bout en bout (Playwright) | 38 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide, phase 2 |
 
-Soit 228 tests Vitest et 35 tests Playwright, tous verts.
+Soit 328 tests Vitest et 38 tests Playwright, tous verts.
 
 ---
 
@@ -240,6 +240,22 @@ Toutes les listes partagent les mêmes briques (`src/components/list/index.tsx`)
 Chaque contrôle est un lien vers la même page avec d'autres paramètres de
 requête : rien n'est chargé dynamiquement, la vue est rendue côté serveur, le
 bouton « retour » fonctionne et une liste filtrée reste partageable par URL.
+
+Les filtres sont donc écrits à plat dans l'URL (`?status=SUSPENDED`) et relus
+depuis elle. L'aller-retour a été cassé en phase 2 : le parseur lisait un objet
+imbriqué, chaque liste renvoyait donc ses lignes **sans filtrer** tout en
+affichant une URL et un compteur corrects. Le round trip est désormais couvert
+des deux côtés — `tests/unit/lists.test.ts` et deux tests de bout en bout qui
+pilotent les listes de fusion (`e2e/phase2.spec.ts`, « filtres listes »).
+
+Les messages de validation sont stockés sous forme de **clé**
+(`vmsg('firstNameInvalid')`) et traduits au dernier moment, à l'affichage : les
+schémas Zod sont analysés deux fois — par le formulaire puis par l'action
+serveur — et ne connaissent pas la langue demandée. Un texte figé dans le
+schéma s'affichait donc en français sur un formulaire en arabe. Les deux
+dictionnaires portent une entrée par règle
+(`validation.*`), et `tests/unit/validation-messages.test.ts` vérifie qu'aucune
+règle ne retombe sur la phrase anglaise de Zod.
 
 ### Ce qui est reporté
 
