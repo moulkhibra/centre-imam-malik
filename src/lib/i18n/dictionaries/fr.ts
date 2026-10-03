@@ -567,7 +567,19 @@ export const fr = {
     capacityReached: 'Capacité du groupe atteinte',
     alreadyEnrolled: 'L\'élève est déjà inscrit dans ce groupe',
     conflict: 'Conflit détecté',
-    serverError: 'Erreur du serveur',
+    // The wording `handleError` shipped for INTERNAL, kept verbatim: mapping that
+    // code to a key whose French text differed would reword the interface.
+    serverError: 'Une erreur interne est survenue',
+    // Phase 2: the banner messages a Server Action can produce. The French
+    // wording is the one that shipped, kept verbatim; the Arabic side was added
+    // with the rest of the namespace.
+    sessionExpired: 'Session expirée, veuillez vous reconnecter',
+    rateLimited: 'Trop de tentatives, réessayez plus tard',
+    invalidCredentials: 'E-mail ou mot de passe incorrect',
+    accountDisabled: 'Ce compte est désactivé. Contactez l\'administrateur.',
+    currentPasswordWrong: 'Mot de passe actuel incorrect',
+    invalidReference: 'Référence invalide : élément lié introuvable',
+    valueAlreadyUsed: 'Valeur déjà utilisée',
     notFoundPage: 'Page introuvable',
     notFoundPageBody: 'La page demandée n\'existe pas ou a été déplacée.',
     backToDashboard: 'Retour au tableau de bord',

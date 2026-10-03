@@ -12,6 +12,7 @@ import {
 } from '@/components/ui';
 import { createLevelAction, updateLevelAction } from '@/actions/levels';
 import { levelCreateSchema } from '@/lib/validation/people';
+import type { ErrorMessage } from '@/lib/validation/messages';
 import type {
   AcademicsLabels,
   FieldErrorMap,
@@ -37,6 +38,7 @@ import type {
 export type LevelFormState = {
   ok: boolean;
   error?: string;
+  errorKey?: ErrorMessage;
   fieldErrors?: FieldErrorMap;
 };
 
@@ -116,7 +118,12 @@ export function LevelForm({
           onSaved();
           return { ok: true };
         }
-        return { ok: false, error: result.error, fieldErrors: result.fieldErrors };
+        return {
+          ok: false,
+          error: result.error,
+          errorKey: result.errorKey,
+          fieldErrors: result.fieldErrors,
+        };
       } catch {
         // The actions catch their own errors, so reaching this branch means the
         // transport itself failed: report it instead of tearing down the page.
@@ -131,7 +138,11 @@ export function LevelForm({
 
   return (
     <form action={formAction} className="space-y-4" noValidate>
-      {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
+      {state.error ? (
+        <Alert tone="danger" errorKey={state.errorKey}>
+          {state.error}
+        </Alert>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label={labels.code} htmlFor="level-code" required error={fieldErrors.code?.[0]}>

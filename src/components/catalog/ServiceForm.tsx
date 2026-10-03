@@ -12,6 +12,7 @@ import {
 } from '@/components/ui';
 import { createServiceAction, updateServiceAction } from '@/actions/services';
 import { serviceCreateSchema } from '@/lib/validation/people';
+import type { ErrorMessage } from '@/lib/validation/messages';
 import { parseOptionalMoney } from '@/lib/validation/common';
 import type { FieldErrorMap, ServiceFormValues, ServiceLabels } from '@/components/catalog/types';
 
@@ -29,6 +30,7 @@ import type { FieldErrorMap, ServiceFormValues, ServiceLabels } from '@/componen
 export type ServiceFormState = {
   ok: boolean;
   error?: string;
+  errorKey?: ErrorMessage;
   fieldErrors?: FieldErrorMap;
 };
 
@@ -117,7 +119,12 @@ export function ServiceForm({
           onSaved();
           return { ok: true };
         }
-        return { ok: false, error: result.error, fieldErrors: result.fieldErrors };
+        return {
+          ok: false,
+          error: result.error,
+          errorKey: result.errorKey,
+          fieldErrors: result.fieldErrors,
+        };
       } catch {
         return { ok: false, error: labels.error };
       }
@@ -130,7 +137,11 @@ export function ServiceForm({
 
   return (
     <form action={formAction} className="space-y-4" noValidate>
-      {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
+      {state.error ? (
+        <Alert tone="danger" errorKey={state.errorKey}>
+          {state.error}
+        </Alert>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label={labels.code} htmlFor="service-code" required error={fieldErrors.code?.[0]}>

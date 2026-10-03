@@ -21,6 +21,7 @@ import { deleteServiceAction } from '@/actions/services';
 import { restoreCatalogItemAction } from '@/actions/subjects';
 import { ServiceForm } from '@/components/catalog/ServiceForm';
 import { listHref, type PageInfo } from '@/lib/lists';
+import type { ErrorMessage } from '@/lib/validation/messages';
 import type {
   CatalogFilterState,
   CatalogListState,
@@ -43,11 +44,11 @@ const BASE_PATH = '/settings/services';
 
 type DeleteTarget = { id: string; code: string; name: string } | null;
 
-type Flash = { tone: 'success' | 'warning' | 'danger'; message: string; signature: string };
+type Flash = { tone: 'success' | 'warning' | 'danger'; message: string; errorKey?: ErrorMessage; signature: string };
 
 type CatalogActionResult =
   | { ok: true; data: { deactivated?: boolean } }
-  | { ok: false; error: string; fieldErrors?: FieldErrorMap };
+  | { ok: false; error: string; errorKey?: ErrorMessage; fieldErrors?: FieldErrorMap };
 
 function viewSignature(
   query: CatalogListState,
@@ -91,8 +92,8 @@ export function ServicesView({
   const signature = viewSignature(query, pagination);
   const visibleFlash = flash && flash.signature === signature ? flash : null;
 
-  const showFlash = (tone: Flash['tone'], message: string) =>
-    setFlash({ tone, message, signature: viewSignature(query, pagination) });
+  const showFlash = (tone: Flash['tone'], message: string, errorKey?: ErrorMessage) =>
+    setFlash({ tone, message, errorKey, signature: viewSignature(query, pagination) });
 
   const refresh = () => router.refresh();
 
@@ -116,7 +117,7 @@ export function ServicesView({
         showFlash('success', labels.updated);
         refresh();
       } else {
-        showFlash('danger', result.error);
+        showFlash('danger', result.error, result.errorKey);
       }
     } catch {
       showFlash('danger', labels.error);
@@ -261,7 +262,11 @@ export function ServicesView({
         ) : null}
       </ListToolbar>
 
-      {visibleFlash ? <Alert tone={visibleFlash.tone}>{visibleFlash.message}</Alert> : null}
+      {visibleFlash ? (
+        <Alert tone={visibleFlash.tone} errorKey={visibleFlash.errorKey}>
+          {visibleFlash.message}
+        </Alert>
+      ) : null}
 
       <DataTable<ServiceRowView>
         basePath={BASE_PATH}
@@ -370,7 +375,7 @@ function DeleteServiceDialog({
   onDeleted: (deactivated: boolean) => void;
 }) {
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const [error, setError] = useState<{ message: string; errorKey?: ErrorMessage } | undefined>(undefined);
 
   const submit = async () => {
     setPending(true);
@@ -381,9 +386,9 @@ function DeleteServiceDialog({
         onDeleted(Boolean(result.data.deactivated));
         return;
       }
-      setError(result.error);
+      setError({ message: result.error, errorKey: result.errorKey });
     } catch {
-      setError(labels.error);
+      setError({ message: labels.error });
     } finally {
       setPending(false);
     }
@@ -409,7 +414,11 @@ function DeleteServiceDialog({
       }
     >
       <div className="space-y-3">
-        {error ? <Alert tone="danger">{error}</Alert> : null}
+        {error ? (
+          <Alert tone="danger" errorKey={error.errorKey}>
+            {error.message}
+          </Alert>
+        ) : null}
         <p className="text-sm text-ink-700">
           {target.name} — <span dir="ltr">{target.code}</span>
         </p>

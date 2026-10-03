@@ -41,7 +41,14 @@ export default async function LoginPage() {
         </div>
 
         <div className="card p-6">
-          <LoginForm />
+          <LoginForm
+            labels={{
+              email: t('auth.email'),
+              password: t('auth.password'),
+              signIn: t('auth.signIn'),
+              signingIn: t('auth.signingIn'),
+            }}
+          />
         </div>
 
         <p className="mt-6 text-center text-xs text-ink-500">

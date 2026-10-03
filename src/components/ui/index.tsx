@@ -1,8 +1,8 @@
 'use client';
 
 import { cn } from '@/lib/utils/cn';
-import { resolveValidationMessage } from '@/lib/validation/messages';
-import { useValidationMessages } from '@/components/validation-messages';
+import { resolveErrorMessage, resolveMessage, type ErrorMessage } from '@/lib/validation/messages';
+import { useErrorMessages, useValidationMessages } from '@/components/validation-messages';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, LabelHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
 
 // --- Button -----------------------------------------------------------------
@@ -106,10 +106,13 @@ export function Field({
   children: ReactNode;
 }) {
   const messages = useValidationMessages();
+  const errorTexts = useErrorMessages();
   const raw = Array.isArray(error) ? error[0] : error;
-  // A validation rule stores a `validation.*` key; anything else (a sentence
-  // pushed by a Server Action) is shown as it arrives.
-  const message = raw && messages ? resolveValidationMessage(raw, messages) : raw;
+  // A validation rule stores a `validation.*` key, and a Server Action pushes an
+  // `errors.*` key for the field it blames (a duplicate code, a wrong current
+  // password). Both are turned into text here; anything else arrives as it stands.
+  const message =
+    raw && messages && errorTexts ? resolveMessage(raw, messages, errorTexts) : raw;
   return (
     <div className={className}>
       <Label htmlFor={htmlFor} required={required}>
@@ -259,7 +262,30 @@ export function Modal({ open, onClose, title, description, children, footer, siz
   );
 }
 
-export function Alert({ tone = 'info', title, children, className }: { tone?: 'info' | 'success' | 'warning' | 'danger'; title?: ReactNode; children?: ReactNode; className?: string }) {
+/**
+ * `errorKey` is an `errors.*` key from a Server Action result.
+ *
+ * The action that produced the message runs outside any request-time locale, so
+ * what it returns cannot be a sentence: the banner is where the locale is known,
+ * so this is where the key becomes text. The French `error` string is still
+ * passed as `children` by every form and is used when there is no key, which is
+ * what keeps a result we failed to key from rendering an empty box.
+ */
+export function Alert({
+  tone = 'info',
+  title,
+  errorKey,
+  children,
+  className,
+}: {
+  tone?: 'info' | 'success' | 'warning' | 'danger';
+  title?: ReactNode;
+  errorKey?: ErrorMessage;
+  children?: ReactNode;
+  className?: string;
+}) {
+  const errorTexts = useErrorMessages();
+  const message = errorKey && errorTexts ? resolveErrorMessage(errorKey, errorTexts) : null;
   const tones = {
     info: 'border-info-600/30 bg-info-50 text-ink-900',
     success: 'border-ok-600/30 bg-ok-50 text-ink-900',
@@ -270,7 +296,7 @@ export function Alert({ tone = 'info', title, children, className }: { tone?: 'i
   return (
     <div role={tone === 'danger' ? 'alert' : 'status'} className={cn('rounded-lg border px-3 py-2 text-sm', tones[tone], className)}>
       {title ? <p className="font-semibold">{title}</p> : null}
-      {children}
+      {message ?? children}
     </div>
   );
 }

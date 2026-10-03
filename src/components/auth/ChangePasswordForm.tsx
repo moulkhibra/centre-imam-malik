@@ -7,12 +7,12 @@ import { Alert, Button, Field, Input, Spinner } from '@/components/ui';
 import { changePasswordAction, type LoginState } from '@/actions/auth';
 import type { ActionResult } from '@/lib/utils/errors';
 
-function SubmitButton({ label }: { label: string }) {
+function SubmitButton({ label, saving }: { label: string; saving: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="w-full" disabled={pending}>
       {pending ? <Spinner /> : null}
-      {pending ? 'Enregistrement…' : label}
+      {pending ? saving : label}
     </Button>
   );
 }
@@ -22,11 +22,14 @@ export function ChangePasswordForm({
   submitLabel,
   forced,
   requirements,
+  labels,
 }: {
   description: string;
   submitLabel: string;
   forced: boolean;
   requirements: string;
+  /** The three field labels, which used to be French literals. */
+  labels: { currentPassword: string; newPassword: string; confirmPassword: string; saving: string };
 }) {
   const router = useRouter();
   const [state, formAction] = useActionState<LoginState, FormData>(async (prev, formData) => {
@@ -36,27 +39,31 @@ export function ChangePasswordForm({
       router.refresh();
       return {};
     }
-    return { error: result.error, fieldErrors: result.fieldErrors };
+    return { error: result.error, errorKey: result.errorKey, fieldErrors: result.fieldErrors };
   }, {});
 
   return (
     <form action={formAction} className="space-y-4" noValidate>
       {forced ? <Alert tone="warning">{description}</Alert> : null}
-      {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
+      {state.error ? (
+        <Alert tone="danger" errorKey={state.errorKey}>
+          {state.error}
+        </Alert>
+      ) : null}
 
-      <Field label="Mot de passe actuel" htmlFor="currentPassword" required error={state.fieldErrors?.currentPassword?.[0]}>
+      <Field label={labels.currentPassword} htmlFor="currentPassword" required error={state.fieldErrors?.currentPassword?.[0]}>
         <Input id="currentPassword" name="currentPassword" type="password" autoComplete="current-password" dir="ltr" required invalid={Boolean(state.fieldErrors?.currentPassword)} />
       </Field>
 
-      <Field label="Nouveau mot de passe" htmlFor="newPassword" required error={state.fieldErrors?.newPassword?.[0]} hint={requirements}>
+      <Field label={labels.newPassword} htmlFor="newPassword" required error={state.fieldErrors?.newPassword?.[0]} hint={requirements}>
         <Input id="newPassword" name="newPassword" type="password" autoComplete="new-password" dir="ltr" required invalid={Boolean(state.fieldErrors?.newPassword)} />
       </Field>
 
-      <Field label="Confirmer le mot de passe" htmlFor="confirmPassword" required error={state.fieldErrors?.confirmPassword?.[0]}>
+      <Field label={labels.confirmPassword} htmlFor="confirmPassword" required error={state.fieldErrors?.confirmPassword?.[0]}>
         <Input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" dir="ltr" required invalid={Boolean(state.fieldErrors?.confirmPassword)} />
       </Field>
 
-      <SubmitButton label={submitLabel} />
+      <SubmitButton label={submitLabel} saving={labels.saving} />
     </form>
   );
 }

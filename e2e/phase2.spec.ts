@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { E2E_PHASE2_ADMIN } from '../playwright.config';
+import { E2E_BASE_URL, E2E_PHASE2_ADMIN } from '../playwright.config';
 
 /**
  * Phase 2 end-to-end coverage.
@@ -527,6 +527,136 @@ test.describe('Phase 2 in Arabic RTL', () => {
  * Parents have no filter at all (`parentFilterSchema` is empty), so there is
  * nothing to cover there; teachers have one, and it is covered below.
  */
+/**
+ * An error banner is the last place French used to survive a language switch.
+ *
+ * A Server Action runs outside any request-time locale, so the message it returns
+ * was a French literal that the interface showed verbatim: duplicating a code on
+ * an Arabic screen answered "Cette valeur existe déjà". Banner messages now
+ * travel as `errors.*` keys and `Alert` resolves them where the locale is known,
+ * like `Field` already did for the rule messages.
+ *
+ * These tests drive the failure through the interface, because the pair that
+ * matters - Arabic label, French answer - is only visible here.
+ */
+test.describe('error banners in Arabic', () => {
+  /** Anything in Latin script in a banner means an untranslated string got through. */
+  const LATIN = /[A-Za-z]/;
+  const ARABIC = /[\u0600-\u06ff]/;
+
+  /**
+   * Asserts every alert on the screen is Arabic, and that at least one is there -
+   * a check that silently passes on an empty selection would prove nothing.
+   */
+  const expectArabicBanners = async (page: Page, where: string) => {
+    const alerts = page.getByRole('alert');
+    // Next.js mounts a visually hidden route announcer that is also
+    // `role="alert"` and never has text; it announces navigations, not our
+    // banners, so `\S` filters it out - and filtering it out is also what makes
+    // the first assertion *wait* for a banner that exists instead of sampling
+    // the announcer the instant it exists.
+    const banners = alerts.filter({ hasText: /\S/ });
+    await expect(banners.first(), `${where} produced no banner`).toBeVisible();
+
+    let checked = 0;
+    for (const banner of await banners.all()) {
+      const text = (await banner.innerText()).trim();
+      checked += 1;
+      expect(text, `${where} banner ${checked} is not Arabic: ${text}`).toMatch(ARABIC);
+      expect(text, `${where} banner ${checked} contains Latin text: ${text}`).not.toMatch(LATIN);
+    }
+    expect(checked, `${where} produced no banner with text`).toBeGreaterThan(0);
+  };
+
+  test('the login refusal is Arabic, not French', async ({ page }) => {
+    // `/login` is the one screen with no language button - it reads the locale
+    // from a cookie - so the switcher is emulated by setting that cookie.
+    // Worth testing precisely because it is the first screen an Arabic user sees.
+    await page.context().addCookies([
+      { name: 'cim_locale', value: 'ar', url: E2E_BASE_URL },
+    ]);
+    await page.goto('/login');
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+
+    // Wrong password on a real account: the action answers `invalidCredentials`,
+    // which used to be the sentence "E-mail ou mot de passe incorrect".
+    await page.getByLabel(/^البريد الإلكتروني/).fill(E2E_PHASE2_ADMIN.email);
+    await page.getByLabel(/^كلمة المرور/).fill('definitely-not-the-password');
+    await page.getByRole('button', { name: 'دخول' }).click();
+
+    await expectArabicBanners(page, 'login');
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' }),
+      'the refusal did not name the two fields that can be wrong',
+    ).toHaveCount(1);
+  });
+
+  test('a duplicated student code is answered in Arabic', async ({ page }) => {
+    const name = nameTag();
+    const code = `ELE-${unique()}`;
+
+    await signInAsAdmin(page);
+    await page.goto('/students');
+    await page.getByRole('button', { name: /langue/i }).click();
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+
+    const fillDialog = async () => {
+      await page.getByRole('button', { name: 'تلميذ جديد' }).click();
+      const dialog = page.getByRole('dialog');
+      await dialog.getByLabel('رمز التلميذ').fill(code);
+      await dialog.getByLabel(/^الاسم الشخصي\s*\*?$/).fill(`Amine${name}`);
+      await dialog.getByLabel(/^الاسم العائلي\s*\*?$/).fill(`ElAmrani${name}`);
+      await page.getByRole('button', { name: /^(إنشاء|حفظ)/ }).click();
+    };
+
+    await fillDialog();
+    await expect(page.getByRole('row').filter({ hasText: code })).toBeVisible();
+
+    // The same code again. Uniqueness is only enforced by the database, so this
+    // reaches the action and comes back as a duplicate - the exact message that
+    // used to be French.
+    await fillDialog();
+    await expectArabicBanners(page, 'duplicated student code');
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'هذه القيمة موجودة مسبقا' }),
+      'the duplicate banner was not the Arabic sentence',
+    ).toHaveCount(1);
+
+    // The same failure also blames the field, with its own key.
+    const fieldMessage = page.getByText('هذه القيمة مستعملة بالفعل');
+    await expect(fieldMessage, 'the field error was not translated either').toBeVisible();
+  });
+
+  test('a duplicated level code is answered in Arabic', async ({ page }) => {
+    const tag = unique();
+    const code = `NIV-${tag}`;
+
+    await signInAsAdmin(page);
+    await page.goto('/settings/academics');
+    await page.getByRole('button', { name: /langue/i }).click();
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+
+    const fillDialog = async () => {
+      await page.getByRole('button', { name: 'مستوى جديد' }).click();
+      const dialog = page.getByRole('dialog');
+      await dialog.getByLabel(/^الرمز/).fill(code);
+      await dialog.getByLabel(/^الدورة/).selectOption('LYCEE');
+      await dialog.getByLabel(/^الاسم \(بالفرنسية\)/).fill(`Lycee ${tag}`);
+      await page.getByRole('button', { name: /^(إنشاء|حفظ)/ }).click();
+    };
+
+    await fillDialog();
+    await expect(page.getByRole('row').filter({ hasText: code })).toBeVisible();
+
+    await fillDialog();
+    await expectArabicBanners(page, 'duplicated level code');
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'هذه القيمة موجودة مسبقا' }),
+      'the duplicate banner was not the Arabic sentence',
+    ).toHaveCount(1);
+  });
+});
+
 test.describe('list filters through the UI', () => {
   test.beforeEach(async ({ page }) => {
     await signInAsAdmin(page);

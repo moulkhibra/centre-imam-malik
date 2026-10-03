@@ -13,6 +13,7 @@ import {
 } from '@/components/ui';
 import { createTeacherAction, updateTeacherAction } from '@/actions/teachers';
 import { teacherCreateSchema } from '@/lib/validation/people';
+import type { ErrorMessage } from '@/lib/validation/messages';
 import type { FieldErrorMap, PeopleLabels, ValueLabels } from '@/components/people/types';
 
 /**
@@ -36,6 +37,7 @@ import type { FieldErrorMap, PeopleLabels, ValueLabels } from '@/components/peop
 export type TeacherFormState = {
   ok: boolean;
   error?: string;
+  errorKey?: ErrorMessage;
   fieldErrors?: FieldErrorMap;
   savedId?: string;
 };
@@ -193,7 +195,12 @@ export function TeacherForm({
           onSaved();
           return { ok: true, savedId: result.data.id };
         }
-        return { ok: false, error: result.error, fieldErrors: result.fieldErrors };
+        return {
+          ok: false,
+          error: result.error,
+          errorKey: result.errorKey,
+          fieldErrors: result.fieldErrors,
+        };
       } catch {
         // The actions catch their own errors, so reaching this branch means the
         // transport itself failed: report it instead of tearing down the page.
@@ -208,7 +215,11 @@ export function TeacherForm({
 
   return (
     <form action={formAction} className="space-y-4" noValidate>
-      {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
+      {state.error ? (
+        <Alert tone="danger" errorKey={state.errorKey}>
+          {state.error}
+        </Alert>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field

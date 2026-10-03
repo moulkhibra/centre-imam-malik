@@ -12,6 +12,7 @@ import {
 } from '@/components/ui';
 import { createParentAction, updateParentAction } from '@/actions/parents';
 import { parentCreateSchema } from '@/lib/validation/people';
+import type { ErrorMessage } from '@/lib/validation/messages';
 import type { ParentFormValues, PeopleLabels } from '@/components/people/types';
 
 /**
@@ -25,6 +26,7 @@ import type { ParentFormValues, PeopleLabels } from '@/components/people/types';
 export type ParentFormState = {
   ok: boolean;
   error?: string;
+  errorKey?: ErrorMessage;
   fieldErrors?: Record<string, string[] | undefined>;
   savedId?: string;
 };
@@ -95,7 +97,12 @@ export function ParentForm({
           onSaved();
           return { ok: true, savedId: result.data.id };
         }
-        return { ok: false, error: result.error, fieldErrors: result.fieldErrors };
+        return {
+          ok: false,
+          error: result.error,
+          errorKey: result.errorKey,
+          fieldErrors: result.fieldErrors,
+        };
       } catch {
         return { ok: false, error: labels.error };
       }
@@ -108,7 +115,11 @@ export function ParentForm({
 
   return (
     <form action={formAction} className="space-y-4" noValidate>
-      {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
+      {state.error ? (
+        <Alert tone="danger" errorKey={state.errorKey}>
+          {state.error}
+        </Alert>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field

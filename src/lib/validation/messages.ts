@@ -55,16 +55,86 @@ export function isValidationMessage(value: string): value is ValidationMessage {
 }
 
 /**
- * Turns a stored message into display text.
+ * Turns a stored rule message into display text.
  *
- * A value that is not a validation key is returned untouched. Server Actions
- * also push their own sentences into the same field-error map (`Données
- * invalides`, `Cette valeur existe déjà`, ...), and rewriting those here would
- * mean inventing translations for strings this module does not own. Leaving
- * them alone keeps the change honest: every *rule* is translated, and anything
- * else still renders as it always did.
+ * A value that is not a validation key is returned untouched. The `errors.*`
+ * namespace below shares the same convention and is resolved by
+ * `resolveMessage`; a sentence that is neither key (a log line, a test fixture)
+ * still renders as it always did.
  */
 export function resolveValidationMessage(value: string, messages: ValidationMessages): string {
   if (!isValidationMessage(value)) return value;
   return messages[value.slice(VALIDATION_PREFIX.length) as ValidationKey] ?? value;
+}
+
+// --- Banner messages ---------------------------------------------------------
+
+/**
+ * Banner messages work the same way, for the same reason.
+ *
+ * A Server Action runs outside any request-time locale - the payload it returns
+ * is built by code that cannot tell a French user from an Arabic one - so the
+ * message it pushes to the client cannot be a sentence either. It carries an
+ * `errors.*` key, and the banner turns it into text where the locale *is* known.
+ *
+ * Before this, `handleError` returned French literals ('Données invalides',
+ * 'Cette valeur existe déjà') that the interface showed verbatim: an Arabic user
+ * who duplicated a code was told so in French, at the top of the form.
+ */
+
+/** Prefix every banner message key carries, so they are recognisable. */
+export const ERROR_PREFIX = 'errors.';
+
+/**
+ * Derived from the French dictionary, the reference one: a key used here without
+ * existing in `fr.errors` is a type error.
+ */
+export type ErrorKey = keyof typeof fr.errors;
+
+export type ErrorMessage = `${typeof ERROR_PREFIX}${ErrorKey}`;
+
+export type ErrorMessages = Record<ErrorKey, string>;
+
+const ERROR_KEYS = Object.keys(fr.errors) as ErrorKey[];
+
+/**
+ * Writes a banner message key into an error result.
+ *
+ * Typed like `vmsg`: a typo fails `tsc` rather than reaching the interface as a
+ * raw `errors.something`.
+ */
+export function ekey(key: ErrorKey): ErrorMessage {
+  return `${ERROR_PREFIX}${key}`;
+}
+
+export function errorMessages(locale: Locale): ErrorMessages {
+  const source = locale === 'ar' ? ar.errors : fr.errors;
+  const messages = {} as ErrorMessages;
+  for (const key of ERROR_KEYS) messages[key] = source[key];
+  return messages;
+}
+
+export function isErrorMessage(value: string): value is ErrorMessage {
+  return value.startsWith(ERROR_PREFIX) && ERROR_KEYS.includes(value.slice(ERROR_PREFIX.length) as ErrorKey);
+}
+
+/** Turns a stored banner message into display text, passing anything else through. */
+export function resolveErrorMessage(value: string, messages: ErrorMessages): string {
+  if (!isErrorMessage(value)) return value;
+  return messages[value.slice(ERROR_PREFIX.length) as ErrorKey] ?? value;
+}
+
+/**
+ * Resolves either namespace, for the components that render both: a `Field` can
+ * hold a rule key from the schema *and* an `errors.*` key pushed by a Server
+ * Action for a duplicate, and an unrecognised value is left alone.
+ */
+export function resolveMessage(
+  value: string,
+  validation: ValidationMessages,
+  errors: ErrorMessages,
+): string {
+  if (isValidationMessage(value)) return resolveValidationMessage(value, validation);
+  if (isErrorMessage(value)) return resolveErrorMessage(value, errors);
+  return value;
 }

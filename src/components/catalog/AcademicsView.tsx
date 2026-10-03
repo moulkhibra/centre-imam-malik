@@ -24,6 +24,7 @@ import { deleteSubjectAction, restoreCatalogItemAction } from '@/actions/subject
 import { LevelForm } from '@/components/catalog/LevelForm';
 import { SubjectForm } from '@/components/catalog/SubjectForm';
 import { listHref, type PageInfo, type SortDirection } from '@/lib/lists';
+import type { ErrorMessage } from '@/lib/validation/messages';
 import { cn } from '@/lib/utils/cn';
 import type {
   AcademicsLabels,
@@ -59,7 +60,7 @@ const TABS: AcademicsTab[] = ['levels', 'subjects', 'languages'];
 
 type DeleteTarget = { id: string; name: string; code: string } | null;
 
-type Flash = { tone: 'success' | 'warning' | 'danger'; message: string; signature: string };
+type Flash = { tone: 'success' | 'warning' | 'danger'; message: string; errorKey?: ErrorMessage; signature: string };
 
 /**
  * Structural view of an `ActionResult`.
@@ -70,7 +71,7 @@ type Flash = { tone: 'success' | 'warning' | 'danger'; message: string; signatur
  */
 type CatalogActionResult =
   | { ok: true; data: { deactivated?: boolean } }
-  | { ok: false; error: string; fieldErrors?: FieldErrorMap };
+  | { ok: false; error: string; errorKey?: ErrorMessage; fieldErrors?: FieldErrorMap };
 
 /** Identifies the exact view a confirmation message belongs to. */
 function viewSignature(
@@ -142,8 +143,8 @@ export function AcademicsView({
   const signature = viewSignature(query, pagination, tab);
   const visibleFlash = flash && flash.signature === signature ? flash : null;
 
-  const showFlash = (tone: Flash['tone'], message: string) =>
-    setFlash({ tone, message, signature: viewSignature(query, pagination, tab) });
+  const showFlash = (tone: Flash['tone'], message: string, errorKey?: ErrorMessage) =>
+    setFlash({ tone, message, errorKey, signature: viewSignature(query, pagination, tab) });
 
   const refresh = () => router.refresh();
 
@@ -206,7 +207,7 @@ export function AcademicsView({
         showFlash('success', labels.updated);
         refresh();
       } else {
-        showFlash('danger', result.error);
+        showFlash('danger', result.error, result.errorKey);
       }
     } catch {
       showFlash('danger', labels.error);
@@ -469,7 +470,11 @@ export function AcademicsView({
         ) : null}
       </CatalogToolbar>
 
-      {visibleFlash ? <Alert tone={visibleFlash.tone}>{visibleFlash.message}</Alert> : null}
+      {visibleFlash ? (
+        <Alert tone={visibleFlash.tone} errorKey={visibleFlash.errorKey}>
+          {visibleFlash.message}
+        </Alert>
+      ) : null}
 
       {isLevelTab ? (
         <DataTable<LevelRowView>
@@ -797,7 +802,7 @@ function DeleteCatalogDialog({
   confirm: () => Promise<CatalogActionResult>;
 }) {
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const [error, setError] = useState<{ message: string; errorKey?: ErrorMessage } | undefined>(undefined);
 
   const submit = async () => {
     setPending(true);
@@ -808,9 +813,9 @@ function DeleteCatalogDialog({
         onDeleted(Boolean(result.data.deactivated));
         return;
       }
-      setError(result.error);
+      setError({ message: result.error, errorKey: result.errorKey });
     } catch {
-      setError(labels.error);
+      setError({ message: labels.error });
     } finally {
       setPending(false);
     }
@@ -836,7 +841,11 @@ function DeleteCatalogDialog({
       }
     >
       <div className="space-y-3">
-        {error ? <Alert tone="danger">{error}</Alert> : null}
+        {error ? (
+          <Alert tone="danger" errorKey={error.errorKey}>
+            {error.message}
+          </Alert>
+        ) : null}
         <p className="text-sm text-ink-700">
           {target.name}
           {target.code ? (

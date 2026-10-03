@@ -28,6 +28,7 @@ import {
 import { deleteTeacherAction } from '@/actions/teachers';
 import { TeacherForm, type TeacherFormValues, type TeacherLabels } from '@/components/people/TeacherForm';
 import { listHref, type PageInfo, type SortDirection } from '@/lib/lists';
+import type { ErrorMessage } from '@/lib/validation/messages';
 import type { FieldErrorMap, ValueLabels } from '@/components/people/types';
 
 /**
@@ -64,7 +65,7 @@ type Filters = { status: string };
 
 type DeleteTarget = { id: string; code: string; name: string } | null;
 
-type Flash = { tone: 'success' | 'danger'; message: string; signature: string };
+type Flash = { tone: 'success' | 'danger'; message: string; errorKey?: ErrorMessage; signature: string };
 
 const BASE_PATH = '/teachers';
 
@@ -126,8 +127,8 @@ export function TeachersView({
   const signature = viewSignature(query, pagination);
   const visibleFlash = flash && flash.signature === signature ? flash : null;
 
-  const showFlash = (tone: Flash['tone'], message: string) =>
-    setFlash({ tone, message, signature: viewSignature(query, pagination) });
+  const showFlash = (tone: Flash['tone'], message: string, errorKey?: ErrorMessage) =>
+    setFlash({ tone, message, errorKey, signature: viewSignature(query, pagination) });
 
   const displayName = (row: TeacherRowView) =>
     locale === 'ar' && row.nameAr ? row.nameAr : `${row.firstName} ${row.lastName}`;
@@ -295,7 +296,11 @@ export function TeachersView({
         ) : null}
       </ListToolbar>
 
-      {visibleFlash ? <Alert tone={visibleFlash.tone}>{visibleFlash.message}</Alert> : null}
+      {visibleFlash ? (
+        <Alert tone={visibleFlash.tone} errorKey={visibleFlash.errorKey}>
+          {visibleFlash.message}
+        </Alert>
+      ) : null}
 
       <DataTable<TeacherRowView>
         basePath={BASE_PATH}
@@ -422,7 +427,7 @@ function DeleteTeacherDialog({
 }) {
   const [confirmCode, setConfirmCode] = useState('');
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const [error, setError] = useState<{ message: string; errorKey?: ErrorMessage } | undefined>(undefined);
   const [fieldErrors, setFieldErrors] = useState<FieldErrorMap>({});
 
   const submit = async () => {
@@ -435,10 +440,10 @@ function DeleteTeacherDialog({
         onDeleted();
         return;
       }
-      setError(result.error);
+      setError({ message: result.error, errorKey: result.errorKey });
       setFieldErrors(result.fieldErrors ?? {});
     } catch {
-      setError(labels.error);
+      setError({ message: labels.error });
     } finally {
       setPending(false);
     }
@@ -464,7 +469,11 @@ function DeleteTeacherDialog({
       }
     >
       <div className="space-y-3">
-        {error ? <Alert tone="danger">{error}</Alert> : null}
+        {error ? (
+          <Alert tone="danger" errorKey={error.errorKey}>
+            {error.message}
+          </Alert>
+        ) : null}
         <p className="text-sm text-ink-700">
           {target.name} — <span dir="ltr">{target.code}</span>
         </p>

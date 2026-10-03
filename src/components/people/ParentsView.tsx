@@ -26,6 +26,7 @@ import {
 import { deleteParentAction } from '@/actions/parents';
 import { ParentForm } from '@/components/people/ParentForm';
 import { listHref, type PageInfo, type SortDirection } from '@/lib/lists';
+import type { ErrorMessage } from '@/lib/validation/messages';
 import type {
   FieldErrorMap,
   ParentFormValues,
@@ -44,7 +45,7 @@ import type {
 
 type DeleteTarget = { id: string; code: string; name: string } | null;
 
-type Flash = { tone: 'success' | 'danger'; message: string; signature: string };
+type Flash = { tone: 'success' | 'danger'; message: string; errorKey?: ErrorMessage; signature: string };
 
 /** Identifies the exact view a confirmation message belongs to. */
 function viewSignature(
@@ -100,8 +101,8 @@ export function ParentsView({
   // from the current URL keeps it from surviving a later navigation.
   const signature = viewSignature(query, pagination);
   const visibleFlash = flash && flash.signature === signature ? flash : null;
-  const showFlash = (tone: Flash['tone'], message: string) =>
-    setFlash({ tone, message, signature: viewSignature(query, pagination) });
+  const showFlash = (tone: Flash['tone'], message: string, errorKey?: ErrorMessage) =>
+    setFlash({ tone, message, errorKey, signature: viewSignature(query, pagination) });
 
   const columns: Array<Column<ParentRowView>> = [
     {
@@ -225,7 +226,11 @@ export function ParentsView({
         ) : null}
       </ListToolbar>
 
-      {visibleFlash ? <Alert tone={visibleFlash.tone}>{visibleFlash.message}</Alert> : null}
+      {visibleFlash ? (
+        <Alert tone={visibleFlash.tone} errorKey={visibleFlash.errorKey}>
+          {visibleFlash.message}
+        </Alert>
+      ) : null}
 
       <DataTable<ParentRowView>
         basePath="/parents"
@@ -323,7 +328,7 @@ function DeleteParentDialog({
 }) {
   const [confirmCode, setConfirmCode] = useState('');
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const [error, setError] = useState<{ message: string; errorKey?: ErrorMessage } | undefined>(undefined);
   const [fieldErrors, setFieldErrors] = useState<FieldErrorMap>({});
 
   const submit = async () => {
@@ -336,10 +341,10 @@ function DeleteParentDialog({
         onDeleted();
         return;
       }
-      setError(result.error);
+      setError({ message: result.error, errorKey: result.errorKey });
       setFieldErrors(result.fieldErrors ?? {});
     } catch {
-      setError(labels.error);
+      setError({ message: labels.error });
     } finally {
       setPending(false);
     }
@@ -365,7 +370,11 @@ function DeleteParentDialog({
       }
     >
       <div className="space-y-3">
-        {error ? <Alert tone="danger">{error}</Alert> : null}
+        {error ? (
+          <Alert tone="danger" errorKey={error.errorKey}>
+            {error.message}
+          </Alert>
+        ) : null}
         <p className="text-sm text-ink-700">
           {target.name} — <span dir="ltr">{target.code}</span>
         </p>

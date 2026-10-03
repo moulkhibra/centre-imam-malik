@@ -17,7 +17,7 @@ import { getCurrentUser } from '@/lib/auth/permissions';
 import { AppError, handleError, ok, type ActionResult } from '@/lib/utils/errors';
 import { z } from 'zod';
 import { emailSchema, passwordSchema } from '@/lib/validation/common';
-import { vmsg } from '@/lib/validation/messages';
+import { ekey, vmsg, type ErrorMessage } from '@/lib/validation/messages';
 import { getActiveCenter } from '@/lib/settings/center';
 
 const loginSchema = z.object({
@@ -25,7 +25,15 @@ const loginSchema = z.object({
   password: z.string().min(1, vmsg('passwordRequired')).max(128, vmsg('passwordRequired')),
 });
 
-export type LoginState = { error?: string; fieldErrors?: Record<string, string[]> };
+/**
+ * `errorKey` is what the banner shows; `error` is the French sentence kept for
+ * the server log. See `src/lib/utils/errors.ts`.
+ */
+export type LoginState = {
+  error?: string;
+  errorKey?: ErrorMessage;
+  fieldErrors?: Record<string, string[]>;
+};
 
 async function requestMeta() {
   const h = await headers();
@@ -48,7 +56,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
       const key = String(issue.path[0] ?? '_form');
       (fieldErrors[key] ??= []).push(issue.message);
     }
-    return { error: 'Données invalides', fieldErrors };
+    return { error: 'Données invalides', errorKey: ekey('validation'), fieldErrors };
   }
 
   const { email, password } = parsed.data;
@@ -58,7 +66,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
   const user = await prisma.user.findUnique({ where: { email } });
 
   // Generic message for every failure mode: never reveal which part was wrong.
-  const GENERIC = { error: 'E-mail ou mot de passe incorrect' };
+  const GENERIC = { error: 'E-mail ou mot de passe incorrect', errorKey: ekey('invalidCredentials') };
 
   if (!user || !center) {
     if (center) {
@@ -100,7 +108,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
       ipAddress: meta.ip,
       userAgent: meta.ua,
     });
-    return { error: 'Ce compte est désactivé. Contactez l\'administrateur.' };
+    return { error: 'Ce compte est désactivé. Contactez l\'administrateur.', errorKey: ekey('accountDisabled') };
   }
 
   const valid = await verifyPassword(password, user.passwordHash);
@@ -198,7 +206,7 @@ export async function changePasswordAction(
         const key = String(issue.path[0] ?? '_form');
         (fieldErrors[key] ??= []).push(issue.message);
       }
-      return { ok: false, error: 'Données invalides', code: 'VALIDATION', fieldErrors };
+      return { ok: false, error: 'Données invalides', errorKey: ekey('validation'), code: 'VALIDATION', fieldErrors };
     }
 
     const record = await prisma.user.findUnique({ where: { id: user.id } });
@@ -206,7 +214,13 @@ export async function changePasswordAction(
 
     const valid = await verifyPassword(parsed.data.currentPassword, record.passwordHash);
     if (!valid) {
-      return { ok: false, error: 'Mot de passe actuel incorrect', code: 'VALIDATION', fieldErrors: { currentPassword: ['Mot de passe actuel incorrect'] } };
+      return {
+        ok: false,
+        error: 'Mot de passe actuel incorrect',
+        errorKey: ekey('currentPasswordWrong'),
+        code: 'VALIDATION',
+        fieldErrors: { currentPassword: [ekey('currentPasswordWrong')] },
+      };
     }
 
     await prisma.user.update({

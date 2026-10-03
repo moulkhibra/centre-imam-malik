@@ -39,6 +39,12 @@ export default async function PasswordPage() {
             requirements={t('auth.passwordRequirements')}
             submitLabel={t('auth.changePassword')}
             forced={user.mustChangePassword}
+            labels={{
+              currentPassword: t('auth.currentPassword'),
+              newPassword: t('auth.newPassword'),
+              confirmPassword: t('auth.confirmPassword'),
+              saving: t('common.saving'),
+            }}
           />
         </div>
 
