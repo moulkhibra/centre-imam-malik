@@ -670,4 +670,66 @@ test.describe('list filters through the UI', () => {
     await expect(row).toBeVisible();
     expect(await rows.count()).toBe(unfiltered);
   });
+
+  test('keeps a filter the user just cleared out of the next change', async ({ page }) => {
+    await page.goto('/students');
+
+    const status = page.getByLabel(/^statut/i);
+    const gender = page.getByLabel(/^genre/i);
+
+    await status.selectOption('SUSPENDED');
+    // The control is driven by the server render, so seeing the value here means
+    // that render has landed and the props really do say SUSPENDED.
+    await expect(status).toHaveValue('SUSPENDED');
+    await expect(page).toHaveURL(/status=SUSPENDED/);
+
+    // Both changes are dispatched in a single task, so the second one is handled
+    // while the props still describe the *previous* state. That is not an exotic
+    // situation: it is what happens whenever the second change beats the server
+    // response to the first, which a slow network produces reliably.
+    //
+    // The toolbar used to compose its URL from those stale props, so the gender
+    // change still saw `status=SUSPENDED` and put back the filter that had just
+    // been cleared: `?status=SUSPENDED&gender=F`. The list then hid the girls the
+    // URL said were wanted. Driving the two changes through the browser in one
+    // step is what makes that deterministic - two `selectOption` calls can let
+    // the render land in between, and then the test passes on the broken code.
+    await page.evaluate(() => {
+      const choose = (id: string, value: string) => {
+        const control = document.getElementById(id) as HTMLSelectElement;
+        control.value = value;
+        control.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      choose('filter-status', 'ALL');
+      choose('filter-gender', 'F');
+    });
+
+    // Order matters: this waits for the navigation to land, and only then checks
+    // that the cleared filter is still absent. Checking the absence first would
+    // pass while the page had not moved yet.
+    await expect(page).toHaveURL(/gender=F/);
+    await expect(page, 'the cleared status filter came back').not.toHaveURL(/status=/);
+    await expect(gender).toHaveValue('F');
+  });
+
+  test('keeps both filters when two changes are made in a row', async ({ page }) => {
+    await page.goto('/settings/academics?tab=levels');
+
+    // The other half of the same defect, on the other list, and the other
+    // direction: here the *first* change is the one lost, because the second
+    // composed its URL from a view that did not have the stage yet.
+    await page.evaluate(() => {
+      const choose = (id: string, value: string) => {
+        const control = document.getElementById(id) as HTMLSelectElement;
+        control.value = value;
+        control.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      choose('filter-stage', 'LYCEE');
+      choose('filter-active', 'false');
+    });
+
+    await expect(page).toHaveURL(/active=false/);
+    await expect(page, 'the stage filter was dropped').toHaveURL(/stage=LYCEE/);
+    await expect(page.getByLabel(/^cycle$/i)).toHaveValue('LYCEE');
+  });
 });

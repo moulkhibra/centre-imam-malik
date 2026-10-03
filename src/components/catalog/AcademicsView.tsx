@@ -18,6 +18,7 @@ import {
   Spinner,
 } from '@/components/ui';
 import { DataTable, Pagination, type Column, type ToolbarFilter } from '@/components/list';
+import { usePendingFilters } from '@/components/list/use-pending-filters';
 import { deleteLevelAction } from '@/actions/levels';
 import { deleteSubjectAction, restoreCatalogItemAction } from '@/actions/subjects';
 import { LevelForm } from '@/components/catalog/LevelForm';
@@ -674,12 +675,18 @@ function CatalogToolbar({
 }) {
   const router = useRouter();
 
-  const hasFilters = Boolean(
-    q || (filters.active && filters.active !== 'ALL') || filters.stage,
-  );
+  // `'ALL'` and `''` both mean "no filter" here, so they are normalised to `''`
+  // once: the hook compares values to decide whether a change has been adopted,
+  // and two spellings of the same state would keep it waiting forever.
+  const { values: activeFilters, change } = usePendingFilters({
+    active: filters.active === 'ALL' ? '' : filters.active,
+    stage: filters.stage === 'ALL' ? '' : filters.stage,
+  });
+
+  const hasFilters = Boolean(q || activeFilters.active || activeFilters.stage);
 
   const applyFilter = (name: string, value: string) => {
-    const next = { ...filters, [name]: value === 'ALL' ? '' : value };
+    const next = change(name as 'active' | 'stage', value === 'ALL' ? '' : value);
     // Back to page 1: a filter that shrinks the list must not strand the user
     // on an empty page 4.
     router.push(
@@ -695,10 +702,10 @@ function CatalogToolbar({
           <input type="hidden" name="sort" value={sort} />
           <input type="hidden" name="dir" value={dir} />
           <input type="hidden" name="pageSize" value={pageSize} />
-          {filters.active && filters.active !== 'ALL' ? (
-            <input type="hidden" name="active" value={filters.active} />
+          {activeFilters.active ? (
+            <input type="hidden" name="active" value={activeFilters.active} />
           ) : null}
-          {filters.stage ? <input type="hidden" name="stage" value={filters.stage} /> : null}
+          {activeFilters.stage ? <input type="hidden" name="stage" value={activeFilters.stage} /> : null}
 
           <label className="sr-only" htmlFor="catalog-search">
             {labels.search}
@@ -742,7 +749,7 @@ function CatalogToolbar({
               </label>
               <select
                 id={`filter-${filter.name}`}
-                value={filter.value || 'ALL'}
+                value={activeFilters[filter.name as 'active' | 'stage'] || 'ALL'}
                 onChange={(event) => applyFilter(filter.name, event.target.value)}
                 className="rounded-lg border border-ink-200 bg-white px-2 py-1.5 text-sm text-ink-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
               >

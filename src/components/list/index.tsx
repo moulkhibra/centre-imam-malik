@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
 import { ariaSortFor, listHref, nextSort, type PageInfo, type SortDirection } from '@/lib/lists';
+import { usePendingFilters } from './use-pending-filters';
 
 /**
  * Shared list-screen building blocks: toolbar, sortable header, pagination.
@@ -45,7 +46,9 @@ export function ListToolbar({
 }) {
   const router = useRouter();
 
-  const activeFilters = Object.fromEntries(filters.map((filter) => [filter.name, filter.value]));
+  const { values: activeFilters, change } = usePendingFilters(
+    Object.fromEntries(filters.map((filter) => [filter.name, filter.value || 'ALL'])),
+  );
 
   const hasFilters = Object.values(activeFilters).some((value) => value && value !== 'ALL');
 
@@ -54,14 +57,18 @@ export function ListToolbar({
    * replaces only the one that changed, and returns to page 1 - otherwise a
    * filter that shrinks the result set can leave the user stranded on an empty
    * page 4.
+   *
+   * `change` returns the whole set to navigate to, composed from the edits the
+   * user has just made rather than from the last server render, which is what
+   * keeps two changes in a row from cancelling each other out.
    */
   const applyFilter = (name: string, value: string) => {
+    const next = change(name, value || 'ALL');
+
     const params = new URLSearchParams();
-    for (const [key, active] of Object.entries(activeFilters)) {
-      if (key === name) continue;
+    for (const [key, active] of Object.entries(next)) {
       if (active && active !== 'ALL') params.set(key, String(active));
     }
-    if (value && value !== 'ALL') params.set(name, value);
     if (q) params.set('q', q);
     params.set('sort', query.sort);
     params.set('dir', query.dir);
@@ -126,7 +133,7 @@ export function ListToolbar({
               </label>
               <select
                 id={`filter-${filter.name}`}
-                value={filter.value || 'ALL'}
+                value={activeFilters[filter.name] || 'ALL'}
                 onChange={(event) => applyFilter(filter.name, event.target.value)}
                 className="rounded-lg border border-ink-200 bg-white px-2 py-1.5 text-sm text-ink-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
               >
