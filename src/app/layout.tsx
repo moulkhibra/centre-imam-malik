@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { getActiveCenter } from '@/lib/settings/center';
 import { getLocaleFromCookies, dir } from '@/lib/i18n';
+import { ValidationMessagesProvider } from '@/components/validation-messages';
 import './globals.css';
 
 export const dynamic = 'force-dynamic';
@@ -46,7 +47,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       }
     >
       <body className="min-h-screen antialiased">
-        {children}
+        <ValidationMessagesProvider locale={locale}>{children}</ValidationMessagesProvider>
       </body>
     </html>
   );

@@ -1,6 +1,8 @@
 'use client';
 
 import { cn } from '@/lib/utils/cn';
+import { resolveValidationMessage } from '@/lib/validation/messages';
+import { useValidationMessages } from '@/components/validation-messages';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, LabelHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
 
 // --- Button -----------------------------------------------------------------
@@ -103,7 +105,11 @@ export function Field({
   className?: string;
   children: ReactNode;
 }) {
-  const message = Array.isArray(error) ? error[0] : error;
+  const messages = useValidationMessages();
+  const raw = Array.isArray(error) ? error[0] : error;
+  // A validation rule stores a `validation.*` key; anything else (a sentence
+  // pushed by a Server Action) is shown as it arrives.
+  const message = raw && messages ? resolveValidationMessage(raw, messages) : raw;
   return (
     <div className={className}>
       <Label htmlFor={htmlFor} required={required}>

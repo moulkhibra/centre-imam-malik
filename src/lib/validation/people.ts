@@ -5,6 +5,7 @@ import {
   ROOM_STATUSES,
   STUDENT_STATUSES,
 } from '@/lib/constants';
+import { vmsg } from '@/lib/validation/messages';
 import {
   cuidSchema,
   isoDateSchema,
@@ -31,18 +32,30 @@ import {
  */
 const LATIN_NAME = /^[\p{L}\s'’\-.,]{2,80}$/u;
 
+/**
+ * The two name rules, identical for a student, a parent and a teacher.
+ *
+ * They were copy-pasted into all three schemas, which is how the wording ended
+ * up translated three times; one helper keeps the three screens in step.
+ */
+const givenName = () =>
+  z.string({ error: vmsg('fieldRequired') }).trim().min(2, vmsg('firstNameTooShort')).max(80, vmsg('firstNameTooLong')).regex(LATIN_NAME, vmsg('firstNameInvalid'));
+
+const familyName = () =>
+  z.string({ error: vmsg('fieldRequired') }).trim().min(2, vmsg('lastNameTooShort')).max(80, vmsg('lastNameTooLong')).regex(LATIN_NAME, vmsg('lastNameInvalid'));
+
 /** Optional free-text field: empty string is normalised to NULL, not ''. */
 const optionalText = (max: number) =>
   z
     .string()
     .trim()
-    .max(max)
+    .max(max, vmsg('textTooLong'))
     .optional()
     .transform((value) => (value ? value : null));
 
 const optionalShortText = (max: number) =>
   z
-    .union([z.literal(''), z.string().trim().max(max)])
+    .union([z.literal(''), z.string().trim().max(max, vmsg('textTooLong'))])
     .optional()
     .transform((value) => (value ? value : null));
 
@@ -58,7 +71,7 @@ const optionalDate = z
 const birthDateSchema = z
   .string()
   .trim()
-  .regex(/^(\d{4})-(\d{2})-(\d{2})$/, 'Date de naissance attendue au format AAAA-MM-JJ')
+  .regex(/^(\d{4})-(\d{2})-(\d{2})$/, vmsg('birthDateFormat'))
   .refine((value) => {
     const [year, month, day] = value.split('-').map(Number) as [number, number, number];
     if (month < 1 || month > 12 || day < 1) return false;
@@ -67,7 +80,7 @@ const birthDateSchema = z
     // A centre cannot enrol a newborn or a centenarian.
     const yearNow = new Date().getUTCFullYear();
     return year >= yearNow - 90 && year <= yearNow;
-  }, 'Date de naissance invalide');
+  }, vmsg('birthDateInvalid'));
 
 const optionalBirthDate = z
   .union([z.literal(''), birthDateSchema])
@@ -76,12 +89,12 @@ const optionalBirthDate = z
 
 /** Centre-assigned code: uppercase, no spaces, so it is readable in a report. */
 const codeSchema = z
-  .string()
+  .string({ error: vmsg('fieldRequired') })
   .trim()
   .toUpperCase()
-  .min(1, 'Code obligatoire')
-  .max(20, 'Code trop long (20 caractères maximum)')
-  .regex(/^[A-Z0-9][A-Z0-9\-_]*$/, 'Code invalide : lettres, chiffres, - et _ uniquement');
+  .min(1, vmsg('codeRequired'))
+  .max(20, vmsg('codeTooLong'))
+  .regex(/^[A-Z0-9][A-Z0-9\-_]*$/, vmsg('codeInvalid'));
 
 const optionalCodeSchema = z
   .union([z.literal(''), codeSchema])
@@ -93,12 +106,12 @@ const optionalCodeSchema = z
 export const studentCreateSchema = trimmed(
   z.object({
     code: optionalCodeSchema,
-    firstName: z.string().trim().min(2, 'Prénom trop court').max(80, 'Prénom trop long').regex(LATIN_NAME, 'Prénom invalide'),
-    lastName: z.string().trim().min(2, 'Nom trop court').max(80, 'Nom trop long').regex(LATIN_NAME, 'Nom invalide'),
+    firstName: givenName(),
+    lastName: familyName(),
     firstNameAr: optionalShortText(80),
     lastNameAr: optionalShortText(80),
     birthDate: optionalBirthDate,
-    gender: z.enum(GENDERS).optional(),
+    gender: z.enum(GENDERS, { error: vmsg('invalidOption') }).optional(),
     cin: optionalCinSchema,
     phone: optionalPhoneSchema,
     whatsapp: optionalPhoneSchema,
@@ -110,7 +123,7 @@ export const studentCreateSchema = trimmed(
     emergencyContactName: optionalText(120),
     emergencyContactPhone: optionalPhoneSchema,
     notes: optionalText(1000),
-    status: z.enum(STUDENT_STATUSES).default('ACTIVE'),
+    status: z.enum(STUDENT_STATUSES, { error: vmsg('invalidOption') }).default('ACTIVE'),
   }),
 );
 
@@ -130,8 +143,8 @@ export const studentUpdateSchema = studentCreateSchema;
 export const parentCreateSchema = trimmed(
   z.object({
     code: optionalCodeSchema,
-    firstName: z.string().trim().min(2, 'Prénom trop court').max(80, 'Prénom trop long').regex(LATIN_NAME, 'Prénom invalide'),
-    lastName: z.string().trim().min(2, 'Nom trop court').max(80, 'Nom trop long').regex(LATIN_NAME, 'Nom invalide'),
+    firstName: givenName(),
+    lastName: familyName(),
     cin: optionalCinSchema,
     phone: optionalPhoneSchema,
     whatsapp: optionalPhoneSchema,
@@ -151,8 +164,8 @@ export const parentUpdateSchema = parentCreateSchema;
 export const teacherCreateSchema = trimmed(
   z.object({
     code: optionalCodeSchema,
-    firstName: z.string().trim().min(2, 'Prénom trop court').max(80, 'Prénom trop long').regex(LATIN_NAME, 'Prénom invalide'),
-    lastName: z.string().trim().min(2, 'Nom trop court').max(80, 'Nom trop long').regex(LATIN_NAME, 'Nom invalide'),
+    firstName: givenName(),
+    lastName: familyName(),
     firstNameAr: optionalShortText(80),
     lastNameAr: optionalShortText(80),
     phone: optionalPhoneSchema,
@@ -162,7 +175,7 @@ export const teacherCreateSchema = trimmed(
     specialization: optionalText(120),
     bio: optionalText(1000),
     hiredAt: optionalDate,
-    status: z.enum(STUDENT_STATUSES).default('ACTIVE'),
+    status: z.enum(STUDENT_STATUSES, { error: vmsg('invalidOption') }).default('ACTIVE'),
     notes: optionalText(1000),
   }),
 );
@@ -175,8 +188,8 @@ export const teacherUpdateSchema = teacherCreateSchema;
 export const levelCreateSchema = trimmed(
   z.object({
     code: codeSchema,
-    stage: z.enum(ACADEMIC_STAGES),
-    nameFr: z.string().trim().min(2, 'Nom trop court').max(80, 'Nom trop long'),
+    stage: z.enum(ACADEMIC_STAGES, { error: vmsg('invalidOption') }),
+    nameFr: z.string({ error: vmsg('fieldRequired') }).trim().min(2, vmsg('lastNameTooShort')).max(80, vmsg('lastNameTooLong')),
     nameAr: optionalShortText(80),
     sortOrder: nonNegativeIntSchema.default(0),
     active: z.coerce.boolean().default(true),
@@ -191,7 +204,7 @@ export const levelUpdateSchema = levelCreateSchema;
 export const subjectCreateSchema = trimmed(
   z.object({
     code: codeSchema,
-    nameFr: z.string().trim().min(2, 'Nom trop court').max(80, 'Nom trop long'),
+    nameFr: z.string({ error: vmsg('fieldRequired') }).trim().min(2, vmsg('lastNameTooShort')).max(80, vmsg('lastNameTooLong')),
     nameAr: optionalShortText(80),
     categoryId: cuidSchema.optional().nullable(),
     description: optionalText(500),
@@ -208,7 +221,7 @@ export const subjectUpdateSchema = subjectCreateSchema;
 export const serviceCreateSchema = trimmed(
   z.object({
     code: codeSchema,
-    nameFr: z.string().trim().min(2, 'Nom trop court').max(80, 'Nom trop long'),
+    nameFr: z.string({ error: vmsg('fieldRequired') }).trim().min(2, vmsg('lastNameTooShort')).max(80, vmsg('lastNameTooLong')),
     nameAr: optionalShortText(80),
     description: optionalText(500),
     defaultPriceCents: nonNegativeIntSchema.default(0),
@@ -224,11 +237,11 @@ export const serviceUpdateSchema = serviceCreateSchema;
 
 export const roomCreateSchema = trimmed(
   z.object({
-    name: z.string().trim().min(1, 'Nom obligatoire').max(80, 'Nom trop long'),
+    name: z.string({ error: vmsg('fieldRequired') }).trim().min(1, vmsg('nameRequired')).max(80, vmsg('lastNameTooLong')),
     capacity: nonNegativeIntSchema.default(0),
     location: optionalText(120),
     equipment: optionalText(300),
-    status: z.enum(ROOM_STATUSES).default('AVAILABLE'),
+    status: z.enum(ROOM_STATUSES, { error: vmsg('invalidOption') }).default('AVAILABLE'),
     notes: optionalText(500),
     active: z.coerce.boolean().default(true),
   }),

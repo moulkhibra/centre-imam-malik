@@ -570,4 +570,57 @@ export const ar = {
     notFoundPageBody: 'الصفحة المطلوبة غير موجودة أو تم نقلها.',
     backToDashboard: 'العودة إلى لوحة التحكم',
   },
+
+  /**
+   * Messages de validation, un par règle.
+   *
+   * Chaque clé est référencée par `vmsg()` depuis les schémas Zod : le texte vit
+   * avec les autres traductions et l'interface arabe n'affiche jamais une phrase
+   * en français.
+   */
+  validation: {
+    fieldRequired: 'الحقل مطلوب',
+    invalidOption: 'قيمة غير صالحة',
+    codeRequired: 'الرمز مطلوب',
+    codeTooLong: 'الرمز طويل جدا (20 حرفًا كحد أقصى)',
+    codeInvalid: 'رمز غير صالح: الحروف والأرقام والرمز - و _ فقط',
+    firstNameTooShort: 'الاسم الشخصي قصير جدا',
+    firstNameTooLong: 'الاسم الشخصي طويل جدا',
+    firstNameInvalid: 'الاسم الشخصي غير صالح',
+    lastNameTooShort: 'الاسم العائلي قصير جدا',
+    lastNameTooLong: 'الاسم العائلي طويل جدا',
+    lastNameInvalid: 'الاسم العائلي غير صالح',
+    nameRequired: 'الاسم مطلوب',
+    textTooLong: 'النص طويل جدا',
+    birthDateFormat: 'تاريخ الميلاد المتوقع بالصيغة سنة-شهر-يوم',
+    birthDateInvalid: 'تاريخ الميلاد غير صالح',
+    phoneTooShort: 'رقم الهاتف قصير جدا',
+    phoneTooLong: 'رقم الهاتف طويل جدا',
+    phoneInvalid: 'رقم الهاتف غير صالح',
+    emailTooShort: 'البريد الإلكتروني قصير جدا',
+    emailTooLong: 'البريد الإلكتروني طويل جدا',
+    emailInvalid: 'البريد الإلكتروني غير صالح',
+    cinInvalid: 'رقم البطاقة الوطنية غير صالح (مثال: AB123456)',
+    idRequired: 'المعرّف مطلوب',
+    dateFormat: 'التاريخ المتوقع بالصيغة سنة-شهر-يوم',
+    dateInvalid: 'التاريخ غير صالح',
+    colorFormat: 'اللون المتوقع بالصيغة #RRGGBB',
+    amountRequired: 'المبلغ مطلوب',
+    amountInvalid: 'المبلغ غير صالح',
+    amountNegative: 'لا يمكن أن يكون المبلغ سالبا',
+    amountTooHigh: 'المبلغ مرتفع جدا',
+    passwordMinLength: 'ثمانية أحرف على الأقل',
+    passwordMaxLength: '128 حرفًا كحد أقصى',
+    passwordNeedsLetter: 'حرف واحد على الأقل',
+    passwordNeedsDigit: 'رقم واحد على الأقل',
+    passwordRequired: 'كلمة المرور مطلوبة',
+    currentPasswordRequired: 'كلمة المرور الحالية مطلوبة',
+    confirmPasswordRequired: 'التأكيد مطلوب',
+    passwordMismatch: 'كلمتا المرور غير متطابقتين',
+    passwordMustDiffer: 'يجب أن تكون كلمة المرور الجديدة مختلفة عن الحالية',
+    numberInvalid: 'رقم غير صالح',
+    numberTooSmall: 'الرقم صغير جدا',
+    numberTooLarge: 'الرقم كبير جدا',
+    numberNotInteger: 'رقم صحيح مطلوب',
+  },
 } as const;

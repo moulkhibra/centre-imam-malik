@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { decimalToCents } from '@/lib/utils/format';
+import { vmsg } from '@/lib/validation/messages';
 import {
   ATTENDANCE_STATUSES,
   GENDERS,
@@ -29,11 +30,11 @@ import {
  * shape and normalised downstream.
  */
 export const phoneSchema = z
-  .string()
+  .string({ error: vmsg('fieldRequired') })
   .trim()
-  .min(6, 'Numéro de téléphone trop court')
-  .max(25, 'Numéro de téléphone trop long')
-  .regex(/^[0-9+().\-\s]+$/, 'Numéro de téléphone invalide');
+  .min(6, vmsg('phoneTooShort'))
+  .max(25, vmsg('phoneTooLong'))
+  .regex(/^[0-9+().\-\s]+$/, vmsg('phoneInvalid'));
 
 export const optionalPhoneSchema = z
   .union([z.literal(''), phoneSchema])
@@ -41,12 +42,12 @@ export const optionalPhoneSchema = z
   .transform((v) => (v ? v : null));
 
 export const emailSchema = z
-  .string()
+  .string({ error: vmsg('fieldRequired') })
   .trim()
   .toLowerCase()
-  .min(5, 'E-mail trop court')
-  .max(160, 'E-mail trop long')
-  .email('E-mail invalide');
+  .min(5, vmsg('emailTooShort'))
+  .max(160, vmsg('emailTooLong'))
+  .email(vmsg('emailInvalid'));
 
 export const optionalEmailSchema = z
   .union([z.literal(''), emailSchema])
@@ -54,17 +55,17 @@ export const optionalEmailSchema = z
   .transform((v) => (v ? v : null));
 
 export const cinSchema = z
-  .string()
+  .string({ error: vmsg('fieldRequired') })
   .trim()
   .toUpperCase()
-  .regex(/^[A-Z]{1,2}\d{1,6}$/, 'CIN invalide (ex: AB123456)');
+  .regex(/^[A-Z]{1,2}\d{1,6}$/, vmsg('cinInvalid'));
 
 export const optionalCinSchema = z
   .union([z.literal(''), cinSchema])
   .optional()
   .transform((v) => (v ? v : null));
 
-export const cuidSchema = z.string().trim().min(1, 'Identifiant requis').max(64);
+export const cuidSchema = z.string({ error: vmsg('fieldRequired') }).trim().min(1, vmsg('idRequired')).max(64, vmsg('idRequired'));
 
 /**
  * Date input from HTML <input type="date"> is always "YYYY-MM-DD".
@@ -74,15 +75,15 @@ export const cuidSchema = z.string().trim().min(1, 'Identifiant requis').max(64)
  * date the secretary never entered.
  */
 export const isoDateSchema = z
-  .string()
+  .string({ error: vmsg('fieldRequired') })
   .trim()
-  .regex(/^(\d{4})-(\d{2})-(\d{2})$/, 'Date attendue au format AAAA-MM-JJ')
+  .regex(/^(\d{4})-(\d{2})-(\d{2})$/, vmsg('dateFormat'))
   .refine((value) => {
     const [year, month, day] = value.split('-').map(Number) as [number, number, number];
     if (month < 1 || month > 12 || day < 1) return false;
     const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
     return day <= lastDay;
-  }, 'Date invalide');
+  }, vmsg('dateInvalid'));
 
 export const optionalIsoDateSchema = z
   .union([z.literal(''), isoDateSchema])
@@ -90,28 +91,28 @@ export const optionalIsoDateSchema = z
   .transform((v) => (v || null));
 
 export const hexColorSchema = z
-  .string()
+  .string({ error: vmsg('fieldRequired') })
   .trim()
-  .regex(/^#[0-9A-Fa-f]{6}$/, 'Couleur attendue au format #RRGGBB');
+  .regex(/^#[0-9A-Fa-f]{6}$/, vmsg('colorFormat'));
 
-export const localeSchema = z.enum(LOCALES);
-export const roleSchema = z.enum(ROLES);
-export const genderSchema = z.enum(GENDERS);
-export const academicStageSchema = z.enum(ACADEMIC_STAGES);
-export const studentStatusSchema = z.enum(STUDENT_STATUSES);
-export const paymentMethodCodeSchema = z.enum(PAYMENT_METHOD_CODES);
-export const promotionTypeSchema = z.enum(PROMOTION_TYPES);
-export const billingTypeSchema = z.enum(BILLING_TYPES);
-export const registrationStatusSchema = z.enum(REGISTRATION_STATUSES);
-export const attendanceStatusSchema = z.enum(ATTENDANCE_STATUSES);
-export const trainingCategorySchema = z.enum(TRAINING_CATEGORIES);
-export const trainingStatusSchema = z.enum(TRAINING_STATUSES);
-export const examTypeSchema = z.enum(EXAM_TYPES);
-export const certificateTypeSchema = z.enum(CERTIFICATE_TYPES);
-export const roomStatusSchema = z.enum(ROOM_STATUSES);
-export const documentCategorySchema = z.enum(DOCUMENT_CATEGORIES);
-export const notificationTypeSchema = z.enum(NOTIFICATION_TYPES);
-export const notificationSeveritySchema = z.enum(NOTIFICATION_SEVERITIES);
+export const localeSchema = z.enum(LOCALES, { error: vmsg('invalidOption') });
+export const roleSchema = z.enum(ROLES, { error: vmsg('invalidOption') });
+export const genderSchema = z.enum(GENDERS, { error: vmsg('invalidOption') });
+export const academicStageSchema = z.enum(ACADEMIC_STAGES, { error: vmsg('invalidOption') });
+export const studentStatusSchema = z.enum(STUDENT_STATUSES, { error: vmsg('invalidOption') });
+export const paymentMethodCodeSchema = z.enum(PAYMENT_METHOD_CODES, { error: vmsg('invalidOption') });
+export const promotionTypeSchema = z.enum(PROMOTION_TYPES, { error: vmsg('invalidOption') });
+export const billingTypeSchema = z.enum(BILLING_TYPES, { error: vmsg('invalidOption') });
+export const registrationStatusSchema = z.enum(REGISTRATION_STATUSES, { error: vmsg('invalidOption') });
+export const attendanceStatusSchema = z.enum(ATTENDANCE_STATUSES, { error: vmsg('invalidOption') });
+export const trainingCategorySchema = z.enum(TRAINING_CATEGORIES, { error: vmsg('invalidOption') });
+export const trainingStatusSchema = z.enum(TRAINING_STATUSES, { error: vmsg('invalidOption') });
+export const examTypeSchema = z.enum(EXAM_TYPES, { error: vmsg('invalidOption') });
+export const certificateTypeSchema = z.enum(CERTIFICATE_TYPES, { error: vmsg('invalidOption') });
+export const roomStatusSchema = z.enum(ROOM_STATUSES, { error: vmsg('invalidOption') });
+export const documentCategorySchema = z.enum(DOCUMENT_CATEGORIES, { error: vmsg('invalidOption') });
+export const notificationTypeSchema = z.enum(NOTIFICATION_TYPES, { error: vmsg('invalidOption') });
+export const notificationSeveritySchema = z.enum(NOTIFICATION_SEVERITIES, { error: vmsg('invalidOption') });
 
 /**
  * Money input as a decimal string, converted to integer cents.
@@ -124,36 +125,46 @@ export const moneySchema = z
   .transform((v, ctx) => {
     const normalised = typeof v === 'number' ? String(v) : v.trim().replace(/\s/g, '').replace(',', '.');
     if (normalised === '') {
-      ctx.addIssue({ code: 'custom', message: 'Montant obligatoire' });
+      ctx.addIssue({ code: 'custom', message: vmsg('amountRequired') });
       return z.NEVER;
     }
     if (!/^-?\d*\.?\d*$/.test(normalised)) {
-      ctx.addIssue({ code: 'custom', message: 'Montant invalide' });
+      ctx.addIssue({ code: 'custom', message: vmsg('amountInvalid') });
       return z.NEVER;
     }
     const cents = decimalToCents(normalised);
     if (cents < 0) {
-      ctx.addIssue({ code: 'custom', message: 'Le montant ne peut pas être négatif' });
+      ctx.addIssue({ code: 'custom', message: vmsg('amountNegative') });
       return z.NEVER;
     }
     if (cents > 100_000_000) {
-      ctx.addIssue({ code: 'custom', message: 'Montant trop élevé' });
+      ctx.addIssue({ code: 'custom', message: vmsg('amountTooHigh') });
       return z.NEVER;
     }
     return cents;
   });
 
-export const nonNegativeIntSchema = z.coerce.number().int().min(0).max(100_000);
-export const positiveIntSchema = z.coerce.number().int().min(1).max(100_000);
-export const scoreSchema = z.coerce.number().min(0).max(1000);
-export const coefficientSchema = z.coerce.number().min(0).max(100);
+/**
+ * Error map for the coerced numbers below.
+ *
+ * `z.coerce.number()` is the only way a form's text input can become a number,
+ * and on failure it falls back to Zod's own English sentence
+ * ("Invalid input: expected number, received NaN"). This replaces it with a key
+ * so an Arabic form never shows it.
+ */
+const intMessages = () => ({ error: vmsg('numberInvalid') }) as const;
+
+export const nonNegativeIntSchema = z.coerce.number(intMessages()).int(vmsg('numberNotInteger')).min(0, vmsg('numberTooSmall')).max(100_000, vmsg('numberTooLarge'));
+export const positiveIntSchema = z.coerce.number(intMessages()).int(vmsg('numberNotInteger')).min(1, vmsg('numberTooSmall')).max(100_000, vmsg('numberTooLarge'));
+export const scoreSchema = z.coerce.number(intMessages()).min(0, vmsg('numberTooSmall')).max(1000, vmsg('numberTooLarge'));
+export const coefficientSchema = z.coerce.number(intMessages()).min(0, vmsg('numberTooSmall')).max(100, vmsg('numberTooLarge'));
 
 export const passwordSchema = z
-  .string()
-  .min(8, 'Au moins 8 caractères')
-  .max(128, 'Maximum 128 caractères')
-  .refine((v) => /[A-Za-z؀-ۿ]/.test(v), 'Au moins une lettre')
-  .refine((v) => /\d/.test(v), 'Au moins un chiffre');
+  .string({ error: vmsg('fieldRequired') })
+  .min(8, vmsg('passwordMinLength'))
+  .max(128, vmsg('passwordMaxLength'))
+  .refine((v) => /[A-Za-z؀-ۿ]/.test(v), vmsg('passwordNeedsLetter'))
+  .refine((v) => /\d/.test(v), vmsg('passwordNeedsDigit'));
 
 /** Strips unknown keys and trims every string value. */
 export function trimmed<T extends z.ZodType>(schema: T) {
@@ -168,10 +179,10 @@ export function trimmed<T extends z.ZodType>(schema: T) {
 }
 
 export const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).max(100_000).default(1),
-  pageSize: z.coerce.number().int().min(5).max(200).default(25),
+  page: z.coerce.number(intMessages()).int(vmsg('numberNotInteger')).min(1, vmsg('numberTooSmall')).max(100_000, vmsg('numberTooLarge')).default(1),
+  pageSize: z.coerce.number(intMessages()).int(vmsg('numberNotInteger')).min(5, vmsg('numberTooSmall')).max(200, vmsg('numberTooLarge')).default(25),
 });
 
 export type Pagination = z.infer<typeof paginationSchema>;
 
-export const sortOrderSchema = z.enum(['asc', 'desc']).default('asc');
+export const sortOrderSchema = z.enum(['asc', 'desc'], { error: vmsg('invalidOption') }).default('asc');

@@ -17,11 +17,12 @@ import { getCurrentUser } from '@/lib/auth/permissions';
 import { AppError, handleError, ok, type ActionResult } from '@/lib/utils/errors';
 import { z } from 'zod';
 import { emailSchema, passwordSchema } from '@/lib/validation/common';
+import { vmsg } from '@/lib/validation/messages';
 import { getActiveCenter } from '@/lib/settings/center';
 
 const loginSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1, 'Mot de passe obligatoire').max(128),
+  password: z.string().min(1, vmsg('passwordRequired')).max(128, vmsg('passwordRequired')),
 });
 
 export type LoginState = { error?: string; fieldErrors?: Record<string, string[]> };
@@ -164,16 +165,16 @@ export async function logoutAction(): Promise<void> {
 
 const changePasswordSchema = z
   .object({
-    currentPassword: z.string().min(1, 'Mot de passe actuel obligatoire'),
+    currentPassword: z.string().min(1, vmsg('currentPasswordRequired')),
     newPassword: passwordSchema,
-    confirmPassword: z.string().min(1, 'Confirmation obligatoire'),
+    confirmPassword: z.string().min(1, vmsg('confirmPasswordRequired')),
   })
   .refine((v) => v.newPassword === v.confirmPassword, {
-    message: 'Les mots de passe ne correspondent pas',
+    message: vmsg('passwordMismatch'),
     path: ['confirmPassword'],
   })
   .refine((v) => v.newPassword !== v.currentPassword, {
-    message: 'Le nouveau mot de passe doit être différent',
+    message: vmsg('passwordMustDiffer'),
     path: ['newPassword'],
   });
 

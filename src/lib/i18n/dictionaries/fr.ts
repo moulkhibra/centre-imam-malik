@@ -572,4 +572,59 @@ export const fr = {
     notFoundPageBody: 'La page demandée n\'existe pas ou a été déplacée.',
     backToDashboard: 'Retour au tableau de bord',
   },
+
+  /**
+   * Messages de validation.
+   *
+   * One key per rule, referenced from the Zod schemas by `vmsg()` rather than
+   * written inline, so the text lives with every other translation and the
+   * Arabic interface never shows a French sentence. The French wording is the
+   * one that shipped in Phase 2; it is kept verbatim so translating the schema
+   * did not quietly reword the interface.
+   */
+  validation: {
+    fieldRequired: 'Champ obligatoire',
+    invalidOption: 'Valeur invalide',
+    codeRequired: 'Code obligatoire',
+    codeTooLong: 'Code trop long (20 caractères maximum)',
+    codeInvalid: 'Code invalide : lettres, chiffres, - et _ uniquement',
+    firstNameTooShort: 'Prénom trop court',
+    firstNameTooLong: 'Prénom trop long',
+    firstNameInvalid: 'Prénom invalide',
+    lastNameTooShort: 'Nom trop court',
+    lastNameTooLong: 'Nom trop long',
+    lastNameInvalid: 'Nom invalide',
+    nameRequired: 'Nom obligatoire',
+    textTooLong: 'Texte trop long',
+    birthDateFormat: 'Date de naissance attendue au format AAAA-MM-JJ',
+    birthDateInvalid: 'Date de naissance invalide',
+    phoneTooShort: 'Numéro de téléphone trop court',
+    phoneTooLong: 'Numéro de téléphone trop long',
+    phoneInvalid: 'Numéro de téléphone invalide',
+    emailTooShort: 'E-mail trop court',
+    emailTooLong: 'E-mail trop long',
+    emailInvalid: 'E-mail invalide',
+    cinInvalid: 'CIN invalide (ex: AB123456)',
+    idRequired: 'Identifiant requis',
+    dateFormat: 'Date attendue au format AAAA-MM-JJ',
+    dateInvalid: 'Date invalide',
+    colorFormat: 'Couleur attendue au format #RRGGBB',
+    amountRequired: 'Montant obligatoire',
+    amountInvalid: 'Montant invalide',
+    amountNegative: 'Le montant ne peut pas être négatif',
+    amountTooHigh: 'Montant trop élevé',
+    passwordMinLength: 'Au moins 8 caractères',
+    passwordMaxLength: 'Maximum 128 caractères',
+    passwordNeedsLetter: 'Au moins une lettre',
+    passwordNeedsDigit: 'Au moins un chiffre',
+    passwordRequired: 'Mot de passe obligatoire',
+    currentPasswordRequired: 'Mot de passe actuel obligatoire',
+    confirmPasswordRequired: 'Confirmation obligatoire',
+    passwordMismatch: 'Les mots de passe ne correspondent pas',
+    passwordMustDiffer: 'Le nouveau mot de passe doit être différent',
+    numberInvalid: 'Nombre invalide',
+    numberTooSmall: 'Nombre trop petit',
+    numberTooLarge: 'Nombre trop grand',
+    numberNotInteger: 'Nombre entier attendu',
+  },
 } as const;
