@@ -233,6 +233,70 @@ test.describe('student registration through the UI', () => {
     await expect(row).toBeVisible();
     await expect(row).toContainText('الامراني');
   });
+
+  /**
+   * The Arabic interface must not answer in French.
+   *
+   * Each rule used to carry its sentence inside the schema, and the schema has
+   * no idea which language asked, so an Arabic form said "Prénom invalide" under
+   * an Arabic label. The schemas now store a key and `Field` turns it into the
+   * locale's text, and this is the only layer that can see the pair arrive
+   * together.
+   */
+  test('answers a rejected submission in Arabic, never in French', async ({ page }) => {
+    const name = nameTag();
+
+    await page.goto('/students');
+    await page.getByRole('button', { name: /langue/i }).click();
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+
+    await page.getByRole('button', { name: 'تلميذ جديد' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel(/^الاسم العائلي\s*\*?$/).fill(`ElAmrani${name}`);
+
+    // Four rules broken at once, each with its own message. The fields are
+    // located by `id` rather than by their Arabic label: an id is the same in
+    // both languages, and this test is about the messages.
+    //
+    // The values are chosen so that each one fails the rule under test and not
+    // an earlier one: `'9'` is rejected by `min(2)` before `LATIN_NAME` is even
+    // reached, so a one-character value would report "trop court" and never
+    // prove the invalid-name message exists.
+    await dialog.locator('#student-firstName').fill('99');
+    await dialog.locator('#student-phone').fill('abcdef');
+    await dialog.locator('#student-email').fill('abcde');
+    await dialog.locator('#student-cin').fill('1234567');
+    await dialog.getByRole('button', { name: /^(إنشاء|حفظ)/ }).click();
+
+    const errors = dialog.locator('p.text-danger-600');
+    await expect(errors).toHaveCount(4);
+
+    /** The message rendered under one input, which is what the secretary reads. */
+    const messageUnder = async (id: string) =>
+      (await dialog.locator(`#${id} ~ p.text-danger-600`).first().textContent())?.trim();
+
+    // Each rule answers with its own Arabic sentence.
+    expect(await messageUnder('student-firstName'), 'first name').toBe('الاسم الشخصي غير صالح');
+    expect(await messageUnder('student-phone'), 'phone').toBe('رقم الهاتف غير صالح');
+    expect(await messageUnder('student-email'), 'e-mail').toBe('البريد الإلكتروني غير صالح');
+    expect(await messageUnder('student-cin'), 'CIN').toBe('رقم البطاقة الوطنية غير صالح (مثال: AB123456)');
+
+    // And none of them is the French sentence the schema used to carry.
+    const texts = (await errors.allTextContents()).map((text) => text.trim());
+    for (const text of texts) {
+      expect(text, `not Arabic script: ${text}`).toMatch(/[\u0600-\u06FF]/);
+      expect(text).not.toMatch(/invalide|trop court|trop long|obligatoire/i);
+      // Nor an unresolved key: `t()` returns the path when one is missing.
+      expect(text).not.toMatch(/^validation\./);
+    }
+
+    // The known French wording, checked by value so the assertion keeps working
+    // if a message is reworded.
+    expect(texts).not.toContain('Prénom invalide');
+    expect(texts).not.toContain('Numéro de téléphone invalide');
+    expect(texts).not.toContain('E-mail invalide');
+    expect(texts).not.toContain('CIN invalide (ex: AB123456)');
+  });
 });
 
 test.describe('catalogue through the UI', () => {
@@ -440,5 +504,155 @@ test.describe('Phase 2 in Arabic RTL', () => {
       // `text-left` that would look correct in French.
       await expect(headers.first()).toHaveCSS('text-align', 'start');
     }
+  });
+});
+
+/**
+ * The list filters.
+ *
+ * Every screen writes its filters flat into the query string (`?status=SUSPENDED`)
+ * and reads them back from there. That round trip was broken: the parser looked
+ * for a nested object, so each dropdown changed the URL, reset to page 1 and then
+ * showed the *unfiltered* list - the control, the URL and the row count all looked
+ * correct while nothing was filtered. These tests drive the dropdowns rather than
+ * the URL, because the URL is what was broken.
+ *
+ * Parents have no filter at all (`parentFilterSchema` is empty), so there is
+ * nothing to cover there; teachers have one, and it is covered below.
+ */
+test.describe('list filters through the UI', () => {
+  test.beforeEach(async ({ page }) => {
+    await signInAsAdmin(page);
+  });
+
+  test('filters the students by status, gender and level', async ({ page }) => {
+    const tag = unique();
+    const name = nameTag();
+    const levelCode = `NIV-${tag}`;
+    const levelName = `Niveau ${tag}`;
+
+    // A level to filter on, created through the catalogue screen.
+    await page.goto('/settings/academics');
+    await page.getByRole('button', { name: /nouveau niveau/i }).click();
+    const levelDialog = page.getByRole('dialog');
+    await levelDialog.getByLabel(/^code/i).fill(levelCode);
+    await levelDialog.getByLabel(/^cycle/i).selectOption('PRIMAIRE');
+    await levelDialog.getByLabel(/nom \(français\)/i).fill(levelName);
+    await page.getByRole('button', { name: /^(créer|enregistrer)/i }).click();
+    await expect(page.getByRole('row').filter({ hasText: levelCode })).toBeVisible();
+
+    // Two students that no single value can both match: a girl in that level and
+    // a boy in none. A filter that does nothing shows both.
+    const girlCode = `FILF${tag}`;
+    const boyCode = `FILG${tag}`;
+
+    const create = async (code: string, firstName: string, gender: 'F' | 'M', level: boolean) => {
+      await page.goto('/students');
+      await page.getByRole('button', { name: /nouvel élève/i }).click();
+      const dialog = page.getByRole('dialog');
+      await dialog.locator('#student-code').fill(code);
+      await dialog.locator('#student-firstName').fill(firstName);
+      await dialog.locator('#student-lastName').fill(`ElAmrani${name}`);
+      await dialog.locator('#student-gender').selectOption(gender);
+      if (level) await dialog.locator('#student-levelId').selectOption({ label: levelName });
+      await page.getByRole('button', { name: /^(créer|enregistrer)/i }).click();
+      await expect(page.getByRole('row').filter({ hasText: code })).toBeVisible();
+    };
+
+    await create(girlCode, `Amine${name}`, 'F', true);
+    await create(boyCode, `Karim${name}`, 'M', false);
+
+    await page.goto('/students');
+    const rows = page.locator('main table tbody tr');
+    const girlRow = page.getByRole('row').filter({ hasText: girlCode });
+    const boyRow = page.getByRole('row').filter({ hasText: boyCode });
+    await expect(girlRow).toBeVisible();
+    await expect(boyRow).toBeVisible();
+    const unfiltered = await rows.count();
+
+    const query = () => new URL(page.url()).searchParams;
+
+    /**
+     * Changes one dropdown and waits for the screen to catch up.
+     *
+     * The second half is not decoration. `applyFilter` builds the next query
+     * from the filters the component currently holds, so changing a second
+     * dropdown before the first navigation has re-rendered the toolbar makes it
+     * read - and re-apply - the filter that was just cleared. Selecting the
+     * gender while the status still read "Suspended" produced
+     * `?status=SUSPENDED&gender=F`, and this test failed on the row it expected.
+     * Waiting for the control to show the new value is what makes the sequence
+     * deterministic.
+     */
+    const applyFilter = async (
+      label: RegExp,
+      value: string | { label: string },
+      settled: string | RegExp,
+    ) => {
+      const control = page.getByLabel(label);
+      await control.selectOption(value);
+      await expect(control, `the ${label} control did not settle`).toHaveValue(settled);
+    };
+
+    // Status: both students are ACTIVE, so SUSPENDED must empty the list.
+    await applyFilter(/^statut/i, 'SUSPENDED', 'SUSPENDED');
+    expect(query().get('status')).toBe('SUSPENDED');
+    await expect(girlRow).toHaveCount(0);
+    await expect(boyRow).toHaveCount(0);
+    expect(await rows.count(), 'the status filter did not remove any row').toBeLessThan(unfiltered);
+
+    // Gender: only the girl. Clearing the status must actually clear it.
+    await applyFilter(/^statut/i, 'ALL', 'ALL');
+    expect(query().get('status')).toBeNull();
+    await applyFilter(/^genre/i, 'F', 'F');
+    expect(query().get('gender')).toBe('F');
+    expect(query().get('status'), 'the cleared status filter came back').toBeNull();
+    await expect(girlRow).toBeVisible();
+    await expect(boyRow).toHaveCount(0);
+
+    // Level: only the girl again, this time by the level she is enrolled in.
+    await applyFilter(/^genre/i, 'ALL', 'ALL');
+    expect(query().get('gender')).toBeNull();
+    await applyFilter(/^niveau/i, { label: levelName }, /.+/);
+    expect(query().get('level')).toBeTruthy();
+    expect(query().get('gender'), 'the cleared gender filter came back').toBeNull();
+    await expect(girlRow).toBeVisible();
+    await expect(boyRow).toHaveCount(0);
+
+    // Clearing the filters brings the whole list back.
+    await applyFilter(/^niveau/i, 'ALL', 'ALL');
+    expect(query().get('level')).toBeNull();
+    await expect(girlRow).toBeVisible();
+    await expect(boyRow).toBeVisible();
+    expect(await rows.count()).toBe(unfiltered);
+  });
+
+  test('filters the teachers by status', async ({ page }) => {
+    const tag = unique();
+    const name = nameTag();
+    const code = `ENS-${tag}`;
+
+    await page.goto('/teachers');
+    await page.getByRole('button', { name: /nouvel enseignant/i }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.locator('#teacher-code').fill(code);
+    await dialog.locator('#teacher-firstName').fill(`Amine${name}`);
+    await dialog.locator('#teacher-lastName').fill(`ElAmrani${name}`);
+    await page.getByRole('button', { name: /^(créer|enregistrer)/i }).click();
+    await expect(page.getByRole('row').filter({ hasText: code })).toBeVisible();
+
+    const row = page.getByRole('row').filter({ hasText: code });
+    const rows = page.locator('main table tbody tr');
+    const unfiltered = await rows.count();
+
+    // The new teacher is ACTIVE, so INACTIVE must hide it.
+    await page.getByLabel(/^statut/i).selectOption('INACTIVE');
+    await expect(page).toHaveURL(/status=INACTIVE/);
+    await expect(row).toHaveCount(0);
+    expect(await rows.count(), 'the teacher status filter did not remove any row').toBeLessThan(unfiltered);
+
+    await page.getByLabel(/^statut/i).selectOption('ALL');
+    await expect(row).toBeVisible();
+    expect(await rows.count()).toBe(unfiltered);
   });
 });
