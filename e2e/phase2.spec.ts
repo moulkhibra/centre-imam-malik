@@ -82,6 +82,20 @@ function nameTag(): string {
   return unique().replace(/[^a-z]/gi, '');
 }
 
+/**
+ * A short marker for codes built as `PREFIX-${codeTag()}-SUFFIX`.
+ *
+ * `codeSchema` caps a code at 20 characters and the code input mirrors that with
+ * `maxLength`, so the browser silently truncates anything longer. `unique()` runs
+ * to about 14 characters, which leaves room for `ELE-` but none for a
+ * disambiguating suffix: the row would be created under a code ending mid-word
+ * and every `hasText` lookup below it would miss. Nine characters keeps
+ * `ELE-<tag>-Alpha` at 19.
+ */
+function codeTag(): string {
+  return `${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`.slice(-9);
+}
+
 async function search(page: Page, term: string): Promise<void> {
   await page.getByPlaceholder(/rechercher/i).fill(term);
   await page.getByRole('button', { name: /rechercher/i }).click();
@@ -200,7 +214,11 @@ test.describe('student registration through the UI', () => {
     // Anchored, and tolerant of the required marker, like the French labels
     // above: `exact: true` against the bare word would miss "الاسم الشخصي*".
     await page.getByLabel(/^الاسم الشخصي\s*\*?$/).fill(`أمين${tag}`);
-    await page.getByLabel('الاسم العائلي').fill(`الامراني${tag}`);
+    // Anchored for the same reason: "الاسم العائلي" is also the prefix of
+    // "الاسم العائلي (بالعربية)", which is the `lastNameAr` field. An unanchored
+    // lookup matches both inputs and the strict-mode violation is reported
+    // against the fill rather than against the label that was ambiguous.
+    await page.getByLabel(/^الاسم العائلي\s*\*?$/).fill(`الامراني${tag}`);
     await page.getByRole('button', { name: /^(إنشاء|حفظ)/ }).click();
 
     // The row appears, and the Arabic name is what the table shows.
@@ -254,8 +272,12 @@ test.describe('catalogue through the UI', () => {
     await page.goto('/settings/services');
     const serviceCode = `SRV-${tag}`;
     await page.getByRole('button', { name: /nouveau service/i }).click();
-    await page.getByRole('dialog').getByLabel(/^code/i).fill(serviceCode);
-    await page.getByRole('dialog').getByLabel(/nom \(français\)/i).fill(`Service ${tag}`);
+    const serviceDialog = page.getByRole('dialog');
+    await serviceDialog.getByLabel(/^code/i).fill(serviceCode);
+    await serviceDialog.getByLabel(/nom \(français\)/i).fill(`Service ${tag}`);
+    // `moneySchema` rejects an empty amount with "Montant obligatoire" and the
+    // field is marked required, so a service cannot be created without one.
+    await serviceDialog.getByLabel(/tarif par défaut/i).fill('250');
     await page.getByRole('button', { name: /^(créer|enregistrer)/i }).click();
     await expect(page.getByRole('row').filter({ hasText: serviceCode })).toBeVisible();
 
@@ -312,7 +334,7 @@ test.describe('list behaviour through the UI', () => {
   });
 
   test('sorts by a column header and keeps the sort through a search', async ({ page }) => {
-    const tag = unique();
+    const tag = codeTag();
     // The names sort by letter, so they cannot carry `tag`'s digits: `LATIN_NAME`
     // would reject them and the rows would never be created. The shared suffix
     // keeps the three rows adjacent under the same search.
@@ -356,13 +378,19 @@ test.describe('Phase 2 in Arabic RTL', () => {
       const response = await page.goto(screen.path);
       expect(response?.status(), `${screen.path} must exist in Arabic`).toBeLessThan(400);
 
+      // Wait for the real screen before sampling it. `<main>` belongs to the
+      // layout, so it is attached while `loading.tsx` is still streaming and
+      // holds nothing but empty `Skeleton` divs - `innerText` resolves on
+      // attachment, so reading it first returned the skeleton's empty string
+      // rather than the page. The heading only exists once the screen is real.
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(screen.ar);
+
       // No untranslated key may leak onto the screen: `t()` returns the path
       // itself when a key is missing, so a dotted path in the body is the
       // visible symptom of a missing translation.
       const body = (await page.locator('main').innerText()).trim();
       expect(body, `${screen.path} rendered no key`).not.toHaveLength(0);
       expect(body, `${screen.path} leaked a translation key`).not.toMatch(/\b[a-z]+\.[a-z]+\.[a-z]+\b/);
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText(screen.ar);
     }
   });
 

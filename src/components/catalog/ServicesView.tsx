@@ -256,7 +256,7 @@ export function ServicesView({
         {canManage ? (
           <Button onClick={() => setCreateOpen(true)}>
             <IconPlus className="size-4" />
-            {labels.create}
+            {labels.newService}
           </Button>
         ) : null}
       </ListToolbar>
@@ -292,7 +292,7 @@ export function ServicesView({
       <Modal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        title={labels.create}
+        title={labels.newService}
         size="lg"
       >
         <ServiceForm

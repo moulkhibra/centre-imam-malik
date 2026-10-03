@@ -264,7 +264,7 @@ export function RoomsView({
         {canManage ? (
           <Button onClick={() => setCreateOpen(true)}>
             <IconPlus className="size-4" />
-            {labels.create}
+            {labels.newRoom}
           </Button>
         ) : null}
       </ListToolbar>
@@ -297,7 +297,7 @@ export function RoomsView({
         }}
       />
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={labels.create} size="lg">
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={labels.newRoom} size="lg">
         <RoomForm
           key="room-create"
           recordId={null}

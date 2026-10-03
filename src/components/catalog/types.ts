@@ -224,6 +224,14 @@ export type AcademicsLabels = CatalogLabels & {
 };
 
 export type ServiceLabels = CatalogLabels & {
+  /**
+   * The toolbar button that opens the create dialog.
+   *
+   * Deliberately distinct from `create`: `create` is the dialog's submit button
+   * ("Créer"), and labelling both "Nouveau service" gave the dialog a title and a
+   * submit button reading the same thing, and left the submit button with no verb.
+   */
+  newService: string;
   nameFr: string;
   nameAr: string;
   description: string;
@@ -239,6 +247,8 @@ export type ServiceLabels = CatalogLabels & {
  * also force every caller to invent a string it never renders.
  */
 export type RoomLabels = Omit<CatalogLabels, 'code'> & {
+  /** The toolbar button that opens the create dialog; see `ServiceLabels.newService`. */
+  newRoom: string;
   name: string;
   capacity: string;
   location: string;
