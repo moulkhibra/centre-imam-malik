@@ -485,7 +485,14 @@ test.describe('Phase 2 in Arabic RTL', () => {
 
     // The sidebar sits on the right on a wide screen.
     await page.setViewportSize({ width: 1280, height: 800 });
-    const box = await page.locator('aside').first().boundingBox();
+    // `boundingBox()` is a single snapshot and does not retry, so measuring right
+    // after the resize could read the layout the shell is still leaving - the
+    // sidebar is behind a Tailwind breakpoint, so it is briefly not laid out.
+    // Waiting for it to be visible first is what makes the measurement below
+    // mean something; the numeric assertions are unchanged.
+    const sidebar = page.locator('aside').first();
+    await expect(sidebar).toBeVisible();
+    const box = await sidebar.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.x + box!.width).toBeGreaterThan(1280 / 2);
 
@@ -570,25 +577,37 @@ test.describe('list filters through the UI', () => {
     await expect(boyRow).toBeVisible();
     const unfiltered = await rows.count();
 
-    const query = () => new URL(page.url()).searchParams;
-
     /**
-     * Changes one dropdown and waits for the screen to catch up.
+     * Waits for the URL to carry exactly these filters.
      *
-     * The second half is not decoration. `applyFilter` builds the next query
-     * from the filters the component currently holds, so changing a second
-     * dropdown before the first navigation has re-rendered the toolbar makes it
-     * read - and re-apply - the filter that was just cleared. Selecting the
-     * gender while the status still read "Suspended" produced
-     * `?status=SUSPENDED&gender=F`, and this test failed on the row it expected.
-     * Waiting for the control to show the new value is what makes the sequence
-     * deterministic.
+     * `applyFilter` builds the next query from the filters the component
+     * currently holds and pushes it with the client router, so a step that reads
+     * `page.url()` too early sees the previous navigation - and, worse, changing
+     * a second dropdown before the first has landed makes it re-apply the filter
+     * that was just cleared. Selecting the gender while the status still read
+     * "Suspendu" produced `?status=SUSPENDED&gender=F`, and this test failed on
+     * the row it expected. Polling the URL makes each step wait for the
+     * navigation it depends on, and `null` asserts that a filter is *absent*,
+     * which is what the race used to break.
      */
-    const applyFilter = async (
-      label: RegExp,
-      value: string | { label: string },
-      settled: string | RegExp,
-    ) => {
+    const expectQuery = async (expected: Record<string, string | RegExp | null>) => {
+      await expect
+        .poll(
+          () => {
+            const params = new URL(page.url()).searchParams;
+            return Object.entries(expected).every(([key, value]) => {
+              const actual = params.get(key);
+              if (value === null) return actual === null;
+              return typeof value === 'string' ? actual === value : value.test(actual ?? '');
+            });
+          },
+          { message: `URL filters ${JSON.stringify(expected)}` },
+        )
+        .toBe(true);
+    };
+
+    /** Changes one dropdown and waits for the control to show the new value. */
+    const applyFilter = async (label: RegExp, value: string | { label: string }, settled: string | RegExp) => {
       const control = page.getByLabel(label);
       await control.selectOption(value);
       await expect(control, `the ${label} control did not settle`).toHaveValue(settled);
@@ -596,32 +615,28 @@ test.describe('list filters through the UI', () => {
 
     // Status: both students are ACTIVE, so SUSPENDED must empty the list.
     await applyFilter(/^statut/i, 'SUSPENDED', 'SUSPENDED');
-    expect(query().get('status')).toBe('SUSPENDED');
+    await expectQuery({ status: 'SUSPENDED', gender: null, level: null });
     await expect(girlRow).toHaveCount(0);
     await expect(boyRow).toHaveCount(0);
     expect(await rows.count(), 'the status filter did not remove any row').toBeLessThan(unfiltered);
 
     // Gender: only the girl. Clearing the status must actually clear it.
     await applyFilter(/^statut/i, 'ALL', 'ALL');
-    expect(query().get('status')).toBeNull();
     await applyFilter(/^genre/i, 'F', 'F');
-    expect(query().get('gender')).toBe('F');
-    expect(query().get('status'), 'the cleared status filter came back').toBeNull();
+    await expectQuery({ gender: 'F', status: null, level: null });
     await expect(girlRow).toBeVisible();
     await expect(boyRow).toHaveCount(0);
 
     // Level: only the girl again, this time by the level she is enrolled in.
     await applyFilter(/^genre/i, 'ALL', 'ALL');
-    expect(query().get('gender')).toBeNull();
     await applyFilter(/^niveau/i, { label: levelName }, /.+/);
-    expect(query().get('level')).toBeTruthy();
-    expect(query().get('gender'), 'the cleared gender filter came back').toBeNull();
+    await expectQuery({ gender: null, status: null, level: /.+/ });
     await expect(girlRow).toBeVisible();
     await expect(boyRow).toHaveCount(0);
 
     // Clearing the filters brings the whole list back.
     await applyFilter(/^niveau/i, 'ALL', 'ALL');
-    expect(query().get('level')).toBeNull();
+    await expectQuery({ level: null, status: null, gender: null });
     await expect(girlRow).toBeVisible();
     await expect(boyRow).toBeVisible();
     expect(await rows.count()).toBe(unfiltered);
