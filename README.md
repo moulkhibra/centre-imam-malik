@@ -7,12 +7,18 @@ Interface **française et arabe** (bilingue, avec sens d'écriture RTL complet).
 Les documents officiels (reçus, attestations, factures, certificats) sont
 générés en PDF avec les deux langues sur la même page.
 
-**État : Phase 2 — personnes et catalogue.** Le socle est livré (voir
-[Phase 1](#phase-1--fondation)) et les écrans élèves, parents, enseignants,
-niveaux, matières, services et salles sont livrés (voir
-[Phase 2](#phase-2--personnes-et-catalogue)). Les modules restants seront
-ajoutés phase par phase ; tant qu'un écran n'existe pas, il n'apparaît nulle
-part dans l'interface (plutôt que d'y mettre un lien mort).
+**État : Phase 2 — personnes et catalogue, livrée et vérifiée.** Le socle est
+livré (voir [Phase 1](#phase-1--fondation)) et les écrans élèves, parents,
+enseignants, niveaux, matières, services et salles sont livrés (voir
+[Phase 2](#phase-2--personnes-et-catalogue)). Le travail est sur `wip/phase-02`,
+**non encore fusionnée dans `master`**, et la porte de qualité (typecheck, lint,
+tests, build, bout en bout) y passe intégralement.
+
+Les écrans restants sont **reportés** et n'apparaissent donc nulle part dans
+l'interface, plutôt que d'y figurer sous forme de lien mort — c'est le cas des
+utilisateurs (`/admin/users`) et des paramètres du centre (`/settings`), tous
+deux reportés à la phase 13 (voir
+[Ce qui est reporté](#ce-qui-est-reporté)).
 
 ---
 
@@ -203,17 +209,22 @@ qui documente aussi la limite connue : un PDF se **lit**, il ne se parse pas.
 
 ### Tests
 
+Volumes **actuels**, phases 1 et 2 réunies (les suites ne sont plus séparées par
+phase) :
+
 | Suite | Volume | Contenu |
 | --- | --- | --- |
-| Unitaires (Vitest) | 147 | formatage MAD, validation, permissions, navigation, dictionnaires, erreurs, listes |
-| Intégration (Vitest) | 78 | schéma et seed sur migrations réelles, authentification, personnes, catalogue |
-| Bout en bout (Playwright) | 41 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide, phase 2 |
+| Unitaires (Vitest) | 151 | formatage MAD, validation, permissions, navigation, dictionnaires, erreurs, listes |
+| Intégration (Vitest) | 77 | schéma et seed sur migrations réelles, authentification, personnes, catalogue |
+| Bout en bout (Playwright) | 35 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide, phase 2 |
+
+Soit 228 tests Vitest et 35 tests Playwright, tous verts.
 
 ---
 
 ## Phase 2 — personnes et catalogue
 
-En cours sur `wip/phase-02`, non encore fusionnée dans `master`.
+Livrée sur `wip/phase-02`, **non encore fusionnée dans `master`**.
 
 ### Écrans livrés
 
@@ -232,20 +243,22 @@ bouton « retour » fonctionne et une liste filtrée reste partageable par URL.
 
 ### Ce qui est reporté
 
-Volontairement **non livré** dans cette phase, et donc **absent de la
-navigation** plutôt que présent sous forme de lien mort :
+Volontairement **non livré**, et donc **absent de la navigation** plutôt que
+présent sous forme de lien mort. Aucun de ces écrans n'a de page : cliquer sur
+ces liens aujourd'hui donnerait un 404, c'est précisément pourquoi ils n'ont pas
+été livrés à cette phase.
 
 | Écran | Raison | Navigation |
 | --- | --- | --- |
-| `/admin/users` (utilisateurs) | reporté à la phase 13 | `navigation.ts:130`, `phase: 13` |
-| `/settings` (paramètres du centre) | reporté à la phase 13 | `navigation.ts:133`, `phase: 13` |
-| `/admin/audit` (journal d'audit) | reporté à la phase 13 | `navigation.ts:131`, `phase: 13` |
+| `/admin/users` (utilisateurs) | **reporté à la phase 13** — gestion des comptes et des permissions | `navigation.ts:130`, `phase: 13` |
+| `/settings` (paramètres du centre) | **reporté à la phase 13** — identité et réglages du centre | `navigation.ts:133`, `phase: 13` |
+| `/admin/audit` (journal d'audit) | **reporté à la phase 13** — seule la lecture manque | `navigation.ts:131`, `phase: 13` |
 
 Le journal d'audit est **déjà écrit** : `src/lib/audit.ts` enregistre chaque
 mutation (`recordChange`/`diffFields`) dans les sept fichiers d'actions. Seule
 la lecture manque. Les liens absents sont vérifiés par un test de bout en bout.
 
-`e2e/phase2.spec.ts:99` échoue si `/admin/users` ou `/settings` réapparaît dans
+`e2e/phase2.spec.ts:135` échoue si `/admin/users` ou `/settings` réapparaît dans
 la barre latérale, donc ce report est tenu par un test et non par une
 convention.
 
