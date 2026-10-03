@@ -201,6 +201,7 @@ test.describe('student registration through the UI', () => {
 
   test('keeps the form usable in Arabic and submits from RTL', async ({ page }) => {
     const tag = unique();
+    const name = nameTag();
     const code = `ELE-${tag}`;
 
     await page.goto('/students');
@@ -213,12 +214,18 @@ test.describe('student registration through the UI', () => {
     await page.getByLabel('رمز التلميذ').fill(code);
     // Anchored, and tolerant of the required marker, like the French labels
     // above: `exact: true` against the bare word would miss "الاسم الشخصي*".
+    // `firstNameAr` is free text, so `tag` and its digits are fine here.
     await page.getByLabel(/^الاسم الشخصي\s*\*?$/).fill(`أمين${tag}`);
     // Anchored for the same reason: "الاسم العائلي" is also the prefix of
     // "الاسم العائلي (بالعربية)", which is the `lastNameAr` field. An unanchored
     // lookup matches both inputs and the strict-mode violation is reported
     // against the fill rather than against the label that was ambiguous.
-    await page.getByLabel(/^الاسم العائلي\s*\*?$/).fill(`الامراني${tag}`);
+    //
+    // Letters only, as `nameTag()` explains: this is the Latin `lastName`, and
+    // `LATIN_NAME` admits any Unicode letter but no digits, so `tag` would be
+    // rejected and no row would ever appear. `LATIN_NAME` does accept Arabic
+    // script, so the Arabic characters themselves are fine.
+    await page.getByLabel(/^الاسم العائلي\s*\*?$/).fill(`الامراني${name}`);
     await page.getByRole('button', { name: /^(إنشاء|حفظ)/ }).click();
 
     // The row appears, and the Arabic name is what the table shows.
@@ -353,8 +360,20 @@ test.describe('list behaviour through the UI', () => {
     await page.getByRole('link', { name: /^nom/i }).click();
     await expect(page).toHaveURL(/dir=asc|dir=desc/);
 
-    const firstName = await page.locator('tbody tr td').nth(1).innerText();
-    expect(firstName).toContain('Alpha');
+    // The search survives the sort - `listHref` carries `q` through - and all
+    // three rows come back under it.
+    const lastNames = await page.locator('tbody tr td:nth-child(2)').allInnerTexts();
+    expect(lastNames).toHaveLength(3);
+
+    // The rows must land in the order the header asked for, whichever way the
+    // toggle fell. `nextSort` reverses a column that is already sorted and
+    // starts a new one ascending, and the list arrives already sorted on
+    // `lastName`, so one click here lands on `dir=desc`. Reading the direction
+    // back off the URL and expecting the matching extreme checks the sort was
+    // applied, rather than pinning one arbitrary toggle position: `dir=desc` has
+    // to put Zeta first, `dir=asc` Alpha.
+    const direction = new URL(page.url()).searchParams.get('dir');
+    expect(lastNames[0]).toContain(direction === 'desc' ? 'Zeta' : 'Alpha');
   });
 
   test('survives a hand-edited URL', async ({ page }) => {
