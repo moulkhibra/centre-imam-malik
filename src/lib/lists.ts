@@ -56,6 +56,17 @@ const pageSizeSchema = z
   .catch(DEFAULT_PAGE_SIZE);
 
 /**
+ * The filter keys a schema declares, or `[]` when it is not a plain object.
+ *
+ * `config.filters` is typed as an opaque `z.ZodTypeAny`, so the keys are read
+ * off `.shape` at runtime rather than from a generic parameter.
+ */
+function declaredFilterKeys(filters: z.ZodTypeAny): string[] {
+  const shape = (filters as unknown as { shape?: unknown }).shape;
+  return shape && typeof shape === 'object' ? Object.keys(shape) : [];
+}
+
+/**
  * Builds the parser for one list screen.
  *
  * `sortFields` doubles as the whitelist: a sort key that is not declared here
@@ -77,6 +88,7 @@ export function listQuery<TSort extends string, TFilters extends z.ZodTypeAny>(c
     filter: config.filters.catch({} as never),
   });
 
+  const filterKeys = declaredFilterKeys(config.filters);
   type Filters = z.infer<TFilters>;
 
   /** Shape the parser guarantees, whatever Zod infers for the generic filter. */
@@ -95,7 +107,21 @@ export function listQuery<TSort extends string, TFilters extends z.ZodTypeAny>(c
     /** Parses raw URL search params. Unknown keys are dropped, never rejected. */
     parse(input: unknown): Parsed & { take: number; skip: number } {
       const raw = (typeof input === 'object' && input !== null ? input : {}) as Record<string, unknown>;
-      const parsed = schema.safeParse(raw);
+
+      // `listHref` writes the filters flat into the query string, and Next.js
+      // hands the page the same flat `searchParams`, so that is where a filter
+      // has to be read from. Lifting the declared keys back under `filter` here
+      // is what keeps the write and the read symmetric; leaving it to the caller
+      // to nest them is what silently dropped every filter in the application.
+      // A caller that already nests them still works: the two are merged, with
+      // the flat URL winning because the URL is the source of truth.
+      const nested = (typeof raw.filter === 'object' && raw.filter !== null ? raw.filter : {}) as Record<string, unknown>;
+      const lifted: Record<string, unknown> = { ...nested };
+      for (const key of filterKeys) {
+        if (raw[key] !== undefined) lifted[key] = raw[key];
+      }
+
+      const parsed = schema.safeParse({ ...raw, filter: lifted });
       const value = (parsed.success ? parsed.data : schema.parse({})) as Parsed;
 
       const sort = config.sortFields.includes(value.sort as TSort)

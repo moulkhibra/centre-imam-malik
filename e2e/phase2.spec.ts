@@ -212,20 +212,20 @@ test.describe('student registration through the UI', () => {
     await page.getByRole('button', { name: 'تلميذ جديد' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.getByLabel('رمز التلميذ').fill(code);
-    // Anchored, and tolerant of the required marker, like the French labels
-    // above: `exact: true` against the bare word would miss "الاسم الشخصي*".
-    // `firstNameAr` is free text, so `tag` and its digits are fine here.
-    await page.getByLabel(/^الاسم الشخصي\s*\*?$/).fill(`أمين${tag}`);
-    // Anchored for the same reason: "الاسم العائلي" is also the prefix of
-    // "الاسم العائلي (بالعربية)", which is the `lastNameAr` field. An unanchored
-    // lookup matches both inputs and the strict-mode violation is reported
-    // against the fill rather than against the label that was ambiguous.
-    //
-    // Letters only, as `nameTag()` explains: this is the Latin `lastName`, and
-    // `LATIN_NAME` admits any Unicode letter but no digits, so `tag` would be
-    // rejected and no row would ever appear. `LATIN_NAME` does accept Arabic
-    // script, so the Arabic characters themselves are fine.
-    await page.getByLabel(/^الاسم العائلي\s*\*?$/).fill(`الامراني${name}`);
+    // "الاسم الشخصي" and "الاسم العائلي" are the Latin `firstName` and
+    // `lastName`, not the Arabic ones - only the "(بالعربية)" pair carries the
+    // Arabic script. `LATIN_NAME` admits any Unicode letter but no digits, so
+    // `tag` here fails with "Prénom invalide" and no row is ever written; hence
+    // `nameTag()`, for the same reason the French test uses it.
+    await page.getByLabel(/^الاسم الشخصي\s*\*?$/).fill(`Amine${name}`);
+    await page.getByLabel(/^الاسم العائلي\s*\*?$/).fill(`ElAmrani${name}`);
+    // Anchored on the "(بالعربية)" suffix, which is what separates these two
+    // from the Latin fields above: an unanchored lookup matches both pairs and
+    // the strict-mode violation is reported against the fill rather than against
+    // the label that was ambiguous. `*` is only added to required fields, so the
+    // optional ones are matched without it.
+    await page.getByLabel(/^الاسم العائلي \(بالعربية\)/).fill('الامراني');
+    await page.getByLabel(/^الاسم الشخصي \(بالعربية\)/).fill('أمين');
     await page.getByRole('button', { name: /^(إنشاء|حفظ)/ }).click();
 
     // The row appears, and the Arabic name is what the table shows.

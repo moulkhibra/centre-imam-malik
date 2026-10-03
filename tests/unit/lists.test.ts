@@ -42,6 +42,24 @@ describe('listQuery', () => {
   it('caps a long search term rather than passing it to SQLite', () => {
     expect(list.parse({ q: 'a'.repeat(500) }).q.length).toBeLessThanOrEqual(120);
   });
+
+  it('reads a filter out of the flat query string, the way the URL carries it', () => {
+    // `listHref` writes `?active=false` and Next.js hands the page the same flat
+    // `searchParams`, so the parser has to lift the declared keys back under
+    // `filter`. When it expected them already nested, `filter` came back `{}`,
+    // every `where` clause was skipped and no list screen filtered anything -
+    // while the toolbar, the URL and the row count all looked correct.
+    expect(list.parse({ active: 'false' }).filter).toEqual({ active: 'false' });
+  });
+
+  it('still accepts a caller that nests the filter', () => {
+    expect(list.parse({ filter: { active: 'true' } }).filter).toEqual({ active: 'true' });
+  });
+
+  it('falls back to the filter defaults when the key is absent or invalid', () => {
+    expect(list.parse({}).filter).toEqual({ active: 'ALL' });
+    expect(list.parse({ active: '' }).filter).toEqual({ active: '' });
+  });
 });
 
 describe('listHref', () => {
@@ -70,10 +88,31 @@ describe('listHref', () => {
   });
 
   it('round-trips through the parser', () => {
-    const list = listQuery({ sortFields: ['code'] as const, defaultSort: 'code', filters: z.object({}) });
-    const href = listHref('/students', { page: 2, q: 'ali', sort: 'code', dir: 'desc', pageSize: 10 });
+    // A real filter schema, not an empty one: with `z.object({})` the round trip
+    // proved nothing about filters, because there were none to carry.
+    const list = listQuery({
+      sortFields: ['code'] as const,
+      defaultSort: 'code',
+      filters: z.object({ active: z.string().default('ALL'), stage: z.string().default('') }),
+    });
+    const href = listHref('/students', {
+      page: 2,
+      q: 'ali',
+      sort: 'code',
+      dir: 'desc',
+      pageSize: 10,
+      filter: { active: 'false', stage: 'PRIMAIRE' },
+    });
     const parsed = list.parse(Object.fromEntries(new URLSearchParams(href.split('?')[1])));
-    expect(parsed).toMatchObject({ page: 2, q: 'ali', sort: 'code', dir: 'desc', take: 10, skip: 10 });
+    expect(parsed).toMatchObject({
+      page: 2,
+      q: 'ali',
+      sort: 'code',
+      dir: 'desc',
+      take: 10,
+      skip: 10,
+      filter: { active: 'false', stage: 'PRIMAIRE' },
+    });
   });
 });
 
