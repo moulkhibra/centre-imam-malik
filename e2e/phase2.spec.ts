@@ -282,11 +282,12 @@ test.describe('catalogue through the UI', () => {
     const serviceDialog = page.getByRole('dialog');
     await serviceDialog.getByLabel(/^code/i).fill(serviceCode);
     await serviceDialog.getByLabel(/nom \(français\)/i).fill(`Service ${tag}`);
-    // `moneySchema` rejects an empty amount with "Montant obligatoire" and the
-    // field is marked required, so a service cannot be created without one.
-    await serviceDialog.getByLabel(/tarif par défaut/i).fill('250');
+    // The price is deliberately left blank: a service can be created before it
+    // is priced, so an empty amount must save as 0 DH rather than be refused.
     await page.getByRole('button', { name: /^(créer|enregistrer)/i }).click();
-    await expect(page.getByRole('row').filter({ hasText: serviceCode })).toBeVisible();
+    const serviceRow = page.getByRole('row').filter({ hasText: serviceCode });
+    await expect(serviceRow).toBeVisible();
+    await expect(serviceRow).toContainText('0,00 DH');
 
     await page.goto('/settings/rooms');
     const roomName = `Salle ${tag}`;

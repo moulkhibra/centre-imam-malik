@@ -13,6 +13,7 @@ import {
   teacherCreateSchema,
   teacherFilterSchema,
 } from '@/lib/validation/people';
+import { parseOptionalMoney } from '@/lib/validation/common';
 
 /**
  * Validation of the Phase 2 records.
@@ -173,5 +174,40 @@ describe('list filters', () => {
   it('gives teachers a status filter and no gender', () => {
     expect(teacherFilterSchema.parse({ status: 'ACTIVE' })).toMatchObject({ status: 'ACTIVE' });
     expect(Object.keys(teacherFilterSchema.parse({}))).toEqual(['status']);
+  });
+});
+
+/**
+ * The service price.
+ *
+ * A blank price is 0, which is what the Prisma column, `serviceCreateSchema` and
+ * the five seeded services all say. The form used to demand an amount anyway,
+ * so a secretary had to invent a price to create a service; a price that *is*
+ * typed still has to be a valid one.
+ */
+describe('optional service price', () => {
+  it('reads an empty price as 0 DH', () => {
+    expect(parseOptionalMoney('')).toEqual({ ok: true, cents: 0 });
+    expect(parseOptionalMoney('   ')).toEqual({ ok: true, cents: 0 });
+    expect(parseOptionalMoney(null)).toEqual({ ok: true, cents: 0 });
+    expect(parseOptionalMoney(undefined)).toEqual({ ok: true, cents: 0 });
+  });
+
+  it('still converts a typed price to centimes', () => {
+    expect(parseOptionalMoney('250')).toEqual({ ok: true, cents: 25000 });
+    expect(parseOptionalMoney('250,50')).toEqual({ ok: true, cents: 25050 });
+    expect(parseOptionalMoney('0')).toEqual({ ok: true, cents: 0 });
+  });
+
+  it('refuses a price that is typed but not an amount', () => {
+    for (const bad of ['abc', '-1', '10000000']) {
+      const result = parseOptionalMoney(bad);
+      expect(result.ok, `${bad} should be refused`).toBe(false);
+    }
+  });
+
+  it('agrees with the schema default the action persists', () => {
+    expect(serviceCreateSchema.parse({ code: 'SRV', nameFr: 'Soutien' }).defaultPriceCents).toBe(0);
+    expect(parseOptionalMoney('')).toEqual({ ok: true, cents: serviceCreateSchema.parse({ code: 'SRV', nameFr: 'Soutien' }).defaultPriceCents });
   });
 });

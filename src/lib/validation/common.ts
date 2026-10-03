@@ -154,6 +154,26 @@ export const moneySchema = z
  */
 const intMessages = () => ({ error: vmsg('numberInvalid') }) as const;
 
+/**
+ * Money field that the form is allowed to leave blank.
+ *
+ * A service can exist before it has a price: the column defaults to 0, the five
+ * seeded services are all 0 DH, and `serviceCreateSchema` defaults the field to
+ * 0 as well. So the service form used to contradict the rest of the model by
+ * refusing to save without an amount, and a secretary had to invent a number to
+ * create a service. Blank now means 0, while anything typed is still validated
+ * by `moneySchema` - a payment amount stays required, because a payment is not
+ * something one can leave blank.
+ */
+export function parseOptionalMoney(value: unknown): { ok: true; cents: number } | { ok: false; messages: string[] } {
+  const blank = value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
+  if (blank) return { ok: true, cents: 0 };
+
+  const parsed = moneySchema.safeParse(value);
+  if (parsed.success) return { ok: true, cents: parsed.data };
+  return { ok: false, messages: parsed.error.issues.map((issue) => issue.message) };
+}
+
 export const nonNegativeIntSchema = z.coerce.number(intMessages()).int(vmsg('numberNotInteger')).min(0, vmsg('numberTooSmall')).max(100_000, vmsg('numberTooLarge'));
 export const positiveIntSchema = z.coerce.number(intMessages()).int(vmsg('numberNotInteger')).min(1, vmsg('numberTooSmall')).max(100_000, vmsg('numberTooLarge'));
 export const scoreSchema = z.coerce.number(intMessages()).min(0, vmsg('numberTooSmall')).max(1000, vmsg('numberTooLarge'));

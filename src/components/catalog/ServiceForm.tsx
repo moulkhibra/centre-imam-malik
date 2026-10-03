@@ -12,7 +12,7 @@ import {
 } from '@/components/ui';
 import { createServiceAction, updateServiceAction } from '@/actions/services';
 import { serviceCreateSchema } from '@/lib/validation/people';
-import { moneySchema } from '@/lib/validation/common';
+import { parseOptionalMoney } from '@/lib/validation/common';
 import type { FieldErrorMap, ServiceFormValues, ServiceLabels } from '@/components/catalog/types';
 
 /**
@@ -83,19 +83,21 @@ export function ServiceForm({
       const formData = catalogFormData(rawFormData, ['active']);
 
       // The typed decimal is converted once, here, with the shared money
-      // schema; what travels is `defaultPriceCents`, the column's own unit.
-      const price = moneySchema.safeParse(formData.get('price') ?? '');
-      if (!price.success) {
-        // `moneySchema` is a leaf schema, so its issues carry no path: they
-        // belong to the price input the user was looking at.
+      // schema; what travels is `defaultPriceCents`, the column's own unit. A
+      // blank price is 0, which is what the column and the schema already
+      // default to, so an unpriced service can be created.
+      const price = parseOptionalMoney(formData.get('price'));
+      if (!price.ok) {
+        // The money schema is a leaf, so its issues carry no path: they belong
+        // to the price input the user was looking at.
         return {
           ok: false,
           error: labels.error,
-          fieldErrors: { price: price.error.issues.map((issue) => issue.message) },
+          fieldErrors: { price: price.messages },
         };
       }
       formData.delete('price');
-      formData.set('defaultPriceCents', String(price.data));
+      formData.set('defaultPriceCents', String(price.cents));
 
       const parsed = serviceCreateSchema.safeParse(Object.fromEntries(formData.entries()));
       if (!parsed.success) {
@@ -144,7 +146,11 @@ export function ServiceForm({
           />
         </Field>
 
-        <Field label={labels.price} htmlFor="service-price" required error={fieldErrors.price?.[0]}>
+        <Field
+          label={`${labels.price} (${labels.optional})`}
+          htmlFor="service-price"
+          error={fieldErrors.price?.[0]}
+        >
           <Input
             id="service-price"
             name="price"
@@ -152,7 +158,6 @@ export function ServiceForm({
             inputMode="decimal"
             defaultValue={values.price}
             dir="ltr"
-            required
             placeholder="250.00"
             autoComplete="off"
             invalid={invalid('price')}
