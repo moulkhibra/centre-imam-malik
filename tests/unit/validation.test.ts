@@ -143,13 +143,54 @@ describe('error handling', () => {
     expect(result.fieldErrors?.email).toBeDefined();
   });
 
+  // The shape actually produced by Prisma 7 + @prisma/adapter-better-sqlite3:
+  // there is no `meta.target`, the columns sit under the driver adapter error.
+  it('attributes a duplicate to the field the user typed, not to centerId.code', () => {
+    const result = handleError({
+      code: 'P2002',
+      meta: {
+        modelName: 'Student',
+        driverAdapterError: {
+          name: 'DriverAdapterError',
+          cause: {
+            originalCode: 'SQLITE_CONSTRAINT_UNIQUE',
+            kind: 'UniqueConstraintViolation',
+            constraint: { fields: ['centerId', 'code'] },
+          },
+        },
+      },
+    });
+
+    expect(result).toMatchObject({ ok: false, code: 'DUPLICATE', errorKey: 'errors.duplicate' });
+    if (result.ok) return;
+    expect(result.fieldErrors).toEqual({ code: ['errors.valueAlreadyUsed'] });
+  });
+
+  it('still reports a banner-only duplicate when no column can be identified', () => {
+    const result = handleError({ code: 'P2002', meta: {} });
+
+    expect(result).toMatchObject({ ok: false, code: 'DUPLICATE' });
+    if (result.ok) return;
+    expect(result.fieldErrors).toBeUndefined();
+  });
+
   it('keeps an AppError message and code', () => {
     const result = handleError(new AppError('FORBIDDEN', 'Accès refusé'));
-    expect(result).toEqual({ ok: false, error: 'Accès refusé', code: 'FORBIDDEN' });
+    expect(result).toEqual({
+      ok: false,
+      error: 'Accès refusé',
+      errorKey: 'errors.forbidden',
+      code: 'FORBIDDEN',
+    });
   });
 
   it('wraps successful payloads', () => {
     expect(ok({ id: '1' })).toEqual({ ok: true, data: { id: '1' } });
-    expect(fail('x', 'NOT_FOUND')).toEqual({ ok: false, error: 'x', code: 'NOT_FOUND' });
+    expect(fail('x', 'NOT_FOUND')).toEqual({
+      ok: false,
+      error: 'x',
+      errorKey: 'errors.notFound',
+      code: 'NOT_FOUND',
+    });
   });
 });

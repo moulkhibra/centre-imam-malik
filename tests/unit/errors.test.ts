@@ -29,9 +29,13 @@ describe('handleError', () => {
   it('reports a unique-constraint violation as a duplicate on the offending field', () => {
     // P2002 is the single most common failure on these screens: two people
     // saving the same code, or two rooms with the same name.
+    // `@@unique([centerId, name])` reports both columns; the message belongs to
+    // `name`, the field the user filled in. `centerId.name` was never read by
+    // any form, so the duplicate silently had no message next to the input.
     const result = handleError({ code: 'P2002', meta: { target: ['centerId', 'name'] } });
     expect(result).toMatchObject({ ok: false, code: 'DUPLICATE' });
-    expect(result.ok === false && result.fieldErrors?.['centerId.name']).toBeTruthy();
+    expect(result.ok === false && result.fieldErrors?.['name']).toBeTruthy();
+    expect(result.ok === false && result.fieldErrors?.['centerId.name']).toBeUndefined();
   });
 
   it('maps a missing row and a broken foreign key', () => {
