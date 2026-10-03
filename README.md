@@ -103,6 +103,8 @@ npm run dev          # http://localhost:3000
 npm run typecheck    # tsc --noEmit
 npm run lint         # eslint
 npm test             # Vitest : unitaire + intégration
+npm run test:unit        # Vitest, projet « unit » seul
+npm run test:integration # Vitest, projet « integration » seul
 npm run test:e2e     # Playwright : bout en bout
 npm run verify:pdf   # vérification du PDF arabe
 npm run build        # build de production
@@ -214,11 +216,18 @@ phase) :
 
 | Suite | Volume | Contenu |
 | --- | --- | --- |
-| Unitaires (Vitest) | 251 | formatage MAD, validation, permissions, navigation, dictionnaires, erreurs, listes |
+| Unitaires (Vitest) | 274 | formatage MAD, validation, permissions, navigation, dictionnaires, erreurs, listes, filtres de liste |
 | Intégration (Vitest) | 77 | schéma et seed sur migrations réelles, authentification, personnes, catalogue |
-| Bout en bout (Playwright) | 38 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide, phase 2 |
+| Bout en bout (Playwright) | 43 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide, phase 2, bannières d'erreur en arabe |
 
-Soit 328 tests Vitest et 38 tests Playwright, tous verts.
+Soit 351 tests Vitest et 43 tests Playwright, tous verts.
+
+`npm test` lance les deux projets Vitest d'un coup. Pour itérer sur un seul,
+`npm run test:unit` (274 tests, quelques secondes) ou
+`npm run test:integration` (77 tests, base réelle) : c'est la commande à
+utiliser quand une erreur vient d'un filtre de liste, d'un dictionnaire ou
+d'un message d'erreur, et qu'on veut savoir si le projet concerné est vert
+avant de lancer les 43 tests Playwright.
 
 ---
 
@@ -256,6 +265,19 @@ schéma s'affichait donc en français sur un formulaire en arabe. Les deux
 dictionnaires portent une entrée par règle
 (`validation.*`), et `tests/unit/validation-messages.test.ts` vérifie qu'aucune
 règle ne retombe sur la phrase anglaise de Zod.
+
+Le même raisonnement vaut pour les **bannières d'erreur**, avec une contrainte
+en plus : une Server Action s'exécute hors de toute locale de requête, elle ne
+peut donc pas renvoyer une phrase traduite. Elle renvoie un code
+(`DUPLICATE`, `RATE_LIMITED`…) et l'action le convertit en clé `errors.*`
+(`ekey('duplicate')`), que `Alert` résout au rendu, là où la locale est connue.
+La phrase française reste dans `error` et sert de repli si une clé manque : un
+résultat non clé affiche un texte au lieu d'une boîte vide. Les 15 bannières
+« danger » de la phase 2 portent une clé, `tests/unit/error-messages.test.ts`
+vérifie la parité FR/AR et qu'aucune bannière ne réintroduit de phrase en
+dur, et trois tests de bout en bout (`e2e/phase2.spec.ts`, « error banners in
+Arabic ») exigent qu'un refus de connexion et deux doublons s'affichent en
+arabe **sans aucun caractère latin**.
 
 ### Ce qui est reporté
 
