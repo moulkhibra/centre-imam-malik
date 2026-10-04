@@ -7,17 +7,18 @@ Interface **française et arabe** (bilingue, avec sens d'écriture RTL complet).
 Les documents officiels (reçus, attestations, factures, certificats) sont
 générés en PDF avec les deux langues sur la même page.
 
-**État : Phase 2 — personnes et catalogue, livrée et vérifiée.** Le socle est
-livré (voir [Phase 1](#phase-1--fondation)) et les écrans élèves, parents,
-enseignants, niveaux, matières, services et salles sont livrés (voir
-[Phase 2](#phase-2--personnes-et-catalogue)). Le travail est sur `wip/phase-02`,
-**non encore fusionnée dans `master`**, et la porte de qualité (typecheck, lint,
-tests, build, bout en bout) y passe intégralement.
+**État : Phase 2B — comptes et paramètres du centre, livrée et vérifiée.** Le
+socle est livré (voir [Phase 1](#phase-1--fondation)), puis les écrans élèves,
+parents, enseignants, niveaux, matières, services et salles (voir
+[Phase 2](#phase-2--personnes-et-catalogue)), puis les comptes
+(`/admin/users`) et les paramètres du centre (`/settings`) (voir
+[Phase 2B](#phase-2b--comptes-et-paramètres-du-centre)). Le travail est sur
+`wip/phase-02b`, **non encore fusionnée dans `master`**, et la porte de qualité
+(typecheck, lint, tests, build, bout en bout) y passe intégralement.
 
 Les écrans restants sont **reportés** et n'apparaissent donc nulle part dans
-l'interface, plutôt que d'y figurer sous forme de lien mort — c'est le cas des
-utilisateurs (`/admin/users`) et des paramètres du centre (`/settings`), tous
-deux reportés à la phase 13 (voir
+l'interface, plutôt que d'y figurer sous forme de lien mort — c'est le cas du
+journal d'audit (`/admin/audit`), reporté à la phase 13 (voir
 [Ce qui est reporté](#ce-qui-est-reporté)).
 
 ---
@@ -230,23 +231,23 @@ qui documente aussi la limite connue : un PDF se **lit**, il ne se parse pas.
 
 ### Tests
 
-Volumes **actuels**, phases 1 et 2 réunies (les suites ne sont plus séparées par
-phase) :
+Volumes **actuels**, phases 1, 2 et 2B réunies (les suites ne sont plus
+séparées par phase) :
 
 | Suite | Volume | Contenu |
 | --- | --- | --- |
-| Unitaires (Vitest) | 274 | formatage MAD, validation, permissions, navigation, dictionnaires, erreurs, listes, filtres de liste |
-| Intégration (Vitest) | 77 | schéma et seed sur migrations réelles, authentification, personnes, catalogue |
-| Bout en bout (Playwright) | 43 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide, phase 2, bannières d'erreur en arabe |
+| Unitaires (Vitest) | 301 | formatage MAD, validation, permissions, navigation, dictionnaires, erreurs, listes, filtres de liste, schémas comptes et paramètres |
+| Intégration (Vitest) | 110 | schéma et seed sur migrations réelles, authentification, personnes, catalogue, comptes, paramètres |
+| Bout en bout (Playwright) | 64 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide, phase 2, phase 2B, bannières d'erreur en arabe |
 
-Soit 351 tests Vitest et 43 tests Playwright, tous verts.
+Soit 411 tests Vitest et 64 tests Playwright, tous verts.
 
 `npm test` lance les deux projets Vitest d'un coup. Pour itérer sur un seul,
-`npm run test:unit` (274 tests, quelques secondes) ou
-`npm run test:integration` (77 tests, base réelle) : c'est la commande à
+`npm run test:unit` (301 tests, quelques secondes) ou
+`npm run test:integration` (110 tests, base réelle) : c'est la commande à
 utiliser quand une erreur vient d'un filtre de liste, d'un dictionnaire ou
 d'un message d'erreur, et qu'on veut savoir si le projet concerné est vert
-avant de lancer les 43 tests Playwright.
+avant de lancer les 64 tests Playwright.
 
 ---
 
@@ -298,6 +299,77 @@ dur, et trois tests de bout en bout (`e2e/phase2.spec.ts`, « error banners in
 Arabic ») exigent qu'un refus de connexion et deux doublons s'affichent en
 arabe **sans aucun caractère latin**.
 
+## Phase 2B — comptes et paramètres du centre
+
+Livrée sur `wip/phase-02b`, **non encore fusionnée dans `master`**.
+
+### Écrans livrés
+
+- **Comptes** (`/admin/users`) : liste, recherche, filtres (rôle, état, mot de
+  passe temporaire), tri, pagination ; création et modification en boîte de
+  dialogue ; changement de rôle ; désactivation réversible ; réinitialisation de
+  mot de passe ; lien facultatif vers une fiche enseignant.
+- **Paramètres du centre** (`/settings`) : identité, coordonnées, apparence
+  (couleurs, logo, fuseau horaire, langue par défaut) et pieds de page des
+  documents, sur une seule page.
+
+### Ce que ces deux écrans ont corrigé
+
+Le premier écran **écrit** de l'application : jusqu'ici les sept listes de la
+phase 2 ne faisaient que lire. Trois défauts ne sont visibles qu'à ce niveau.
+
+**Un refus ne doit pas coûter la saisie.** React vide un formulaire non contrôlé
+quand son action se termine — y compris quand elle se termine par un refus. Une
+seule adresse en doublon effaçait le nom, le téléphone et le mot de passe ; un
+seul chemin de logo invalide effaçait les vingt champs du centre. Les valeurs
+refusées sont donc renvoyées dans l'état de l'action et les champs sont
+remontés avec elles, par une clé qui change à chaque refus. **Exception
+délibérée : le mot de passe n'est jamais restauré**, pour qu'un secret refusé ne
+revienne pas dans la page depuis le serveur.
+
+**Un rôle peut corriger son identité, pas son accès.** Le garde de
+`updateUserAction` rejetait toute modification de son propre compte, ce qui
+interdisait aussi de corriger un numéro de téléphone mal saisi. Il sort désormais
+tôt lorsque ni le rôle ni l'activation ne changent : l'administrateur se corrige
+lui-même, mais personne ne peut se retirer son propre rôle ni se désactiver, et le
+dernier administrateur actif reste. Le test de bout en bout « corrects its own
+details but cannot change its own role » vérifie les deux moitiés.
+
+**Un mot de passe contient deux champs obligatoires.** Chaque écran a des
+états qui n'existent que sur une liste — « actif / désactivé », « mot de passe
+temporaire », « jamais connecté », « vous » — et la navigation ne les montrait
+que pour l'administrateur. `DIRECTEUR` est le seul rôle qui peut **lire** les
+comptes et les paramètres sans les **modifier** ; la suite de bout en bout l'utilise
+pour vérifier que la même page s'affiche en lecture seule (champs désactivés, pas
+de bouton « enregistrer »).
+
+**Deux champs ne peuvent pas porter le même libellé.** Les deux champs de nom du
+formulaire de compte s'appelaient « Nom », ce qui annonçait deux champs identiques
+et plaçait le message de l'un sous le premier.
+
+**Un champ refusé doit être annoncé.** `Input`, `Textarea` et `Select`
+portaient une bordure rouge et rien d'autre : un lecteur d'écran n'apprenait pas
+que la valeur avait été refusée. Ils portent maintenant `aria-invalid`.
+
+**Un terme de recherche composé uniquement de jokers SQL ne doit rien lister.**
+`searchLiteral()` retire `%`, `_` et `\` du terme ; un terme qui ne contient
+alors que des jokers ne correspond à rien, au lieu de renvoyer la liste entière.
+
+### Le reste
+
+`/admin/audit` reste reporté : le journal est **écrit** par
+`src/lib/audit.ts` à chaque mutation, seule la lecture manque.
+
+La commande de secours `npm run admin:reset` remet un mot de passe
+d'administrateur depuis le shell, pour l'installation où plus aucun compte
+administrateur ne peut se connecter. Elle fait ce que fait l'écran — mot de
+passe à changer à la prochaine connexion, verrouillage remis à zéro, sessions
+ouvertes fermées, entrée `PASSWORD_RESET` au journal sans le secret — refuse un
+compte qui n'est pas `ADMIN` et refuse de travailler sur une base hors du dossier
+`prisma/` du projet.
+
+---
+
 ### Ce qui est reporté
 
 Volontairement **non livré**, et donc **absent de la navigation** plutôt que
@@ -307,15 +379,14 @@ ces liens aujourd'hui donnerait un 404, c'est précisément pourquoi ils n'ont p
 
 | Écran | Raison | Navigation |
 | --- | --- | --- |
-| `/admin/users` (utilisateurs) | **reporté à la phase 13** — gestion des comptes et des permissions | `navigation.ts:130`, `phase: 13` |
-| `/settings` (paramètres du centre) | **reporté à la phase 13** — identité et réglages du centre | `navigation.ts:133`, `phase: 13` |
-| `/admin/audit` (journal d'audit) | **reporté à la phase 13** — seule la lecture manque | `navigation.ts:131`, `phase: 13` |
+| `/admin/audit` (journal d'audit) | **reporté à la phase 13** — seule la lecture manque | `navigation.ts`, `phase: 13` |
+| `/admin/backup` (sauvegardes) | **reporté à la phase 13** — la sauvegarde existe déjà en ligne de commande | `navigation.ts`, `phase: 13` |
 
 Le journal d'audit est **déjà écrit** : `src/lib/audit.ts` enregistre chaque
-mutation (`recordChange`/`diffFields`) dans les sept fichiers d'actions. Seule
-la lecture manque. Les liens absents sont vérifiés par un test de bout en bout.
+mutation (`recordChange`/`diffFields`) dans les fichiers d'actions. Seule la
+lecture manque. Les liens absents sont vérifiés par un test de bout en bout.
 
-`e2e/phase2.spec.ts:135` échoue si `/admin/users` ou `/settings` réapparaît dans
+`e2e/phase2.spec.ts` échoue si `/admin/audit` ou `/admin/backup` réapparaît dans
 la barre latérale, donc ce report est tenu par un test et non par une
 convention.
 
