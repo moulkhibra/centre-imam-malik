@@ -8,7 +8,9 @@ import {
   ACADEMIC_STAGES,
   ACADEMIC_STAGE_LABELS,
   GENDERS,
+  ROLE_LABELS,
   ROOM_STATUSES,
+  ROLES,
   STUDENT_STATUSES,
   STUDENT_STATUS_LABELS,
 } from '@/lib/constants';
@@ -67,6 +69,39 @@ describe('translation dictionaries', () => {
   it('contains real Arabic characters, not transliterated placeholders', () => {
     const arabic = [...tAr('nav.students'), ...tAr('finance.payments'), ...tAr('common.save')].join('');
     expect(arabic).toMatch(/[\u0600-\u06FF]/);
+  });
+
+  it('does not contain the incorrect Arabic forms of "teacher" and "parent"', () => {
+    // `الأستاذة` is the definite form of the feminine noun: it can only be read
+    // as a female teacher, so the sidebar announced a female teacher to a male
+    // one. `الآباء` is the plural of "father", which excludes the mother.
+    // Both are checked on the dictionary source, not on resolved keys, so a
+    // reintroduced wording fails even under a key the tests never read.
+    const arContent = fs.readFileSync(path.join(process.cwd(), 'src/lib/i18n/dictionaries/ar.ts'), 'utf8');
+    expect(arContent).not.toContain('الأستاذة');
+    expect(arContent).not.toContain('الآباء');
+  });
+
+  it('names the roles with the gender-neutral Arabic words', () => {
+    // The same problem one level up: `مدير` is fine for a man and wrong for a
+    // woman, while `أستاذ` covers both. The dictionary ships the labels, but the
+    // role badges come from ROLE_LABELS in constants.ts, so both are asserted.
+    expect(tAr('nav.teachers')).toBe('الأساتذة');
+    expect(tAr('nav.parents')).toBe('الأولياء');
+    expect(ROLE_LABELS.TEACHER.ar).toBe('أستاذ');
+    expect(ROLE_LABELS.SECRETARY.ar).toBe('الأمين');
+    for (const role of ROLES) {
+      expect(ROLE_LABELS[role].ar, `${role} has no Arabic label`).toMatch(/[\u0600-\u06FF]/);
+    }
+  });
+
+  it('gives the shared busy indicator no hardcoded French label', () => {
+    // The spinner is used on every screen, French and Arabic alike. A default
+    // `aria-label="Chargement"` in the component is a French sentence nobody
+    // can translate, and it is invisible: no dictionary check ever sees it.
+    const source = fs.readFileSync(path.join(process.cwd(), 'src/components/ui/index.tsx'), 'utf8');
+    const spinner = source.slice(source.indexOf('export function Spinner'));
+    expect(spinner).not.toMatch(/ariaLabel\s*=\s*'/);
   });
 
   it('defines a label for every value of every closed set', () => {

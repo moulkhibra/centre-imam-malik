@@ -205,11 +205,24 @@ export function ErrorState({ title, description, action }: { title: string; desc
   );
 }
 
-export function Spinner({ className }: { className?: string }) {
+/**
+ * Busy indicator.
+ *
+ * Without an `ariaLabel` the spinner is `aria-hidden`: every call site so far
+ * puts it inside a `<Button>` that already carries the state in its own name
+ * ("Enregistrement…", "Réessayer"), so announcing a second one only repeats
+ * the button. A spinner that stands on its own passes the label of the screen it
+ * belongs to, resolved in the reader's language by the caller.
+ *
+ * The French literal this used to hardcode is what made it impossible to render
+ * the component on an Arabic screen without an untranslated string.
+ */
+export function Spinner({ className, ariaLabel }: { className?: string; ariaLabel?: string }) {
   return (
     <span
-      role="status"
-      aria-label="Chargement"
+      {...(ariaLabel
+        ? ({ role: 'status', 'aria-label': ariaLabel } as const)
+        : ({ 'aria-hidden': 'true' } as const))}
       className={cn('inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent', className)}
     />
   );
