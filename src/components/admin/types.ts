@@ -82,6 +82,8 @@ export type ValueLabels = Record<string, string>;
 export type UsersViewLabels = {
   // shared chrome
   search: string;
+  searchPlaceholder: string;
+  searchAction: string;
   reset: string;
   all: string;
   none: string;

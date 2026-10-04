@@ -33,6 +33,8 @@ export function ListToolbar({
   query,
   filters = [],
   searchLabel,
+  searchPlaceholder,
+  searchAction,
   resetLabel,
   children,
 }: {
@@ -40,7 +42,12 @@ export function ListToolbar({
   q: string;
   query: { sort: string; dir: SortDirection; pageSize: number; filter?: Record<string, unknown> };
   filters?: ToolbarFilter[];
+  /** Accessible name of the search field. */
   searchLabel: string;
+  /** Visible hint inside the field. Different from `searchLabel` on purpose. */
+  searchPlaceholder: string;
+  /** Label of the submit button. Must not repeat `searchLabel`. */
+  searchAction: string;
   resetLabel: string;
   children?: ReactNode;
 }) {
@@ -49,7 +56,6 @@ export function ListToolbar({
   const { values: activeFilters, change } = usePendingFilters(
     Object.fromEntries(filters.map((filter) => [filter.name, filter.value || 'ALL'])),
   );
-
 
   const hasFilters = Object.values(activeFilters).some((value) => value && value !== 'ALL');
 
@@ -101,7 +107,7 @@ export function ListToolbar({
               type="search"
               name="q"
               defaultValue={q}
-              placeholder={searchLabel}
+              placeholder={searchPlaceholder}
               className="w-full rounded-lg border border-ink-200 bg-white py-2 pe-9 ps-9 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
             />
             <span
@@ -118,7 +124,7 @@ export function ListToolbar({
             type="submit"
             className="rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm font-medium text-ink-700 hover:bg-ink-50"
           >
-            {searchLabel}
+            {searchAction}
           </button>
         </form>
 

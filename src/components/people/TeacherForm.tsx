@@ -55,6 +55,8 @@ export type TeacherLabels = Pick<
   PeopleLabels,
   | 'title'
   | 'search'
+  | 'searchPlaceholder'
+  | 'searchAction'
   | 'reset'
   | 'noResults'
   | 'empty'

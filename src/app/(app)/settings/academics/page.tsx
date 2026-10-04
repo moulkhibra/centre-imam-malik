@@ -198,6 +198,8 @@ export default async function AcademicsPage({ searchParams }: { searchParams: Se
     subjectActive: t('subject.active'),
     // Shared chrome.
     search: t('common.search'),
+    searchPlaceholder: t('common.searchPlaceholder'),
+    searchAction: t('common.filter'),
     reset: t('common.reset'),
     all: t('common.all'),
     noResults: t('common.noResults'),

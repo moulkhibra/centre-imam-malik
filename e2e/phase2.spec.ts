@@ -98,7 +98,7 @@ function codeTag(): string {
 
 async function search(page: Page, term: string): Promise<void> {
   await page.getByPlaceholder(/rechercher/i).fill(term);
-  await page.getByRole('button', { name: /rechercher/i }).click();
+  await page.getByRole('button', { name: /filtrer/i }).click();
 }
 
 test.describe('Phase 2 screens', () => {
@@ -114,8 +114,10 @@ test.describe('Phase 2 screens', () => {
     }
 
     // And the sidebar actually offers them: a screen reachable only by typing
-    // the URL is not shipped.
+    // the URL is not shipped. Waited for rather than read on arrival, so a
+    // half-streamed sidebar cannot make this pass or fail for the wrong reason.
     await page.goto('/dashboard');
+    await expect(page.locator('aside nav a').first()).toBeVisible();
     const hrefs = await page.locator('aside nav a').evaluateAll((links) =>
       links.map((link) => link.getAttribute('href')),
     );
@@ -410,6 +412,14 @@ test.describe('list behaviour through the UI', () => {
 
   test('shows the empty search state and recovers from it', async ({ page }) => {
     await page.goto('/students');
+
+    // The toolbar used to carry the word "Rechercher" three times: as the
+    // field's label, as its placeholder and as the submit button, so a screen
+    // reader announced "Rechercher" twice for one field. The submit button now
+    // says what it does.
+    await expect(page.getByRole('searchbox', { name: /rechercher/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^rechercher/i })).toHaveCount(0);
+
     await search(page, `zzz${unique()}`);
     await expect(page.getByText(/aucun élève ne correspond/i)).toBeVisible();
 

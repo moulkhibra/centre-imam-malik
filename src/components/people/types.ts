@@ -99,7 +99,12 @@ export type PeopleLabels = {
   // list chrome
   /** Screen title, used as the table caption. */
   title: string;
+  /** Accessible name of the list search field. */
   search: string;
+  /** Hint inside the search field; kept distinct from `search`. */
+  searchPlaceholder: string;
+  /** The submit button next to it, which must not repeat `search`. */
+  searchAction: string;
   reset: string;
   all: string;
   /** The "no value" option of an optional select, as opposed to `all`. */

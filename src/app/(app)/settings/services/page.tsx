@@ -72,6 +72,8 @@ export default async function ServicesPage({ searchParams }: { searchParams: Sea
     serviceActive: t('service.active'),
     // Shared chrome.
     search: t('common.search'),
+    searchPlaceholder: t('common.searchPlaceholder'),
+    searchAction: t('common.filter'),
     reset: t('common.reset'),
     all: t('common.all'),
     noResults: t('common.noResults'),

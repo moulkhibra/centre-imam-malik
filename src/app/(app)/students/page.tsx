@@ -118,6 +118,8 @@ export default async function StudentsPage({ searchParams }: { searchParams: Sea
   const labels: PeopleLabels = {
     title: t('students.title'),
     search: t('common.search'),
+    searchPlaceholder: t('common.searchPlaceholder'),
+    searchAction: t('common.filter'),
     reset: t('common.reset'),
     all: t('common.all'),
     none: t('common.none'),

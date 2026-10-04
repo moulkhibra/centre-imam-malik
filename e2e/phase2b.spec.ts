@@ -410,6 +410,24 @@ test.describe('accounts in Arabic', () => {
     // Arabic form created is readable on the Arabic screen.
     await expect(rowFor(page, email)).toContainText(/كلمة مرور مؤقتة/);
   });
+
+  test('the list toolbar is Arabic too, and says what its button does', async ({ page }) => {
+    // The toolbar is shared with every other list screen, so a French string
+    // left in it would show up in Arabic on the whole application.
+    await expect(page.getByRole('searchbox', { name: /^بحث/ })).toBeVisible();
+    await expect(page.getByPlaceholder(/^بحث/)).toBeVisible();
+
+    const apply = page.getByRole('button', { name: /^تصفية$/ });
+    await expect(apply).toBeVisible();
+    // One word for the field, another for the button: the toolbar used to
+    // repeat "Rechercher" on both, which in Arabic read as "بحث" twice.
+    await expect(page.getByRole('button', { name: /^بحث/ })).toHaveCount(0);
+
+    // And it still searches: the row content is what proves it.
+    await page.locator('#list-search').fill(`zz-${unique()}`);
+    await apply.click();
+    await expect(page.getByText(/لا يوجد حساب مطابق/)).toBeVisible();
+  });
 });
 
 test.describe('centre settings (/settings)', () => {

@@ -238,16 +238,16 @@ séparées par phase) :
 | --- | --- | --- |
 | Unitaires (Vitest) | 301 | formatage MAD, validation, permissions, navigation, dictionnaires, erreurs, listes, filtres de liste, schémas comptes et paramètres |
 | Intégration (Vitest) | 110 | schéma et seed sur migrations réelles, authentification, personnes, catalogue, comptes, paramètres |
-| Bout en bout (Playwright) | 64 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide, phase 2, phase 2B, bannières d'erreur en arabe |
+| Bout en bout (Playwright) | 65 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide, phase 2, phase 2B, barre d'outils de liste en arabe, bannières d'erreur en arabe |
 
-Soit 411 tests Vitest et 64 tests Playwright, tous verts.
+Soit 411 tests Vitest et 65 tests Playwright, tous verts.
 
 `npm test` lance les deux projets Vitest d'un coup. Pour itérer sur un seul,
 `npm run test:unit` (301 tests, quelques secondes) ou
 `npm run test:integration` (110 tests, base réelle) : c'est la commande à
 utiliser quand une erreur vient d'un filtre de liste, d'un dictionnaire ou
 d'un message d'erreur, et qu'on veut savoir si le projet concerné est vert
-avant de lancer les 64 tests Playwright.
+avant de lancer les 65 tests Playwright.
 
 ---
 
@@ -355,6 +355,16 @@ que la valeur avait été refusée. Ils portent maintenant `aria-invalid`.
 `searchLiteral()` retire `%`, `_` et `\` du terme ; un terme qui ne contient
 alors que des jokers ne correspond à rien, au lieu de renvoyer la liste entière.
 
+**Une barre d'outils ne doit pas répéter le mot du champ qu'elle contient.**
+Corrigé ici parce que c'est la première phase qui livre des listes *filtrables*
+avec cette barre partagée : le champ de recherche s'appelait « Rechercher », son
+invite aussi, et le bouton de validation encore — trois fois le même mot, dont
+deux fois dans l'arbre d'accessibilité, où un lecteur d'écran annonçait
+« Rechercher » deux fois pour un seul champ. Le champ porte désormais son
+invite (`Rechercher…`) et le bouton dit ce qu'il fait (`Filtrer`), les deux en
+français et en arabe. Les six écrans qui partagent cette barre sont concernés,
+et un test de bout en bout échoue si un bouton reprend le libellé du champ.
+
 ### Le reste
 
 `/admin/audit` reste reporté : le journal est **écrit** par
@@ -367,6 +377,28 @@ passe à changer à la prochaine connexion, verrouillage remis à zéro, session
 ouvertes fermées, entrée `PASSWORD_RESET` au journal sans le secret — refuse un
 compte qui n'est pas `ADMIN` et refuse de travailler sur une base hors du dossier
 `prisma/` du projet.
+
+### Écart connu avec la demande de phase : le logo
+
+La phase 2B demandait un **téléversement** de logo (type, taille, octets
+d'empreinte, stockage hors du web public, servi par une route autorisée). Ce qui
+est livré est un champ qui accepte un **chemin** sous `public/`, validé comme
+chemin (pas de traversée, extension d'image) et utilisé tel quel par la barre
+latérale et les pieds de page.
+
+Ce n'est pas un oubli : le téléversement de fichiers avec ses octets
+d'empreinte, son stockage hors du web public, sa route servie sous permission,
+ses noms de fichiers aléatoires et son test d'accès direct à un enregistrement
+appartient déjà à la phase 8, qui doit le faire **une seule fois** pour toutes les
+pièces jointes. Le faire ici pour le seul logo créerait un second chemin de
+stockage que la phase 8 devrait unifier ensuite.
+
+Tant que le téléversement n'existe pas, deux conséquences à connaître : le logo
+est servi ** publiquement** par `public/` (il apparaît sur les documents, il n'a
+rien de secret), et **aucune validation des octets de l'image n'est faite** —
+seule l'extension l'est. Un fichier qui n'est pas une vraie image sera refusé
+par le navigateur, pas par l'application. Les couleurs, elles, sont bien
+validées (format hexadécimal et contraste).
 
 ---
 

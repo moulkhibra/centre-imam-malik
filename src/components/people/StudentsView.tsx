@@ -288,6 +288,8 @@ export function StudentsView({
         query={{ ...query, filter: filterRecord }}
         filters={toolbarFilters}
         searchLabel={labels.search}
+        searchPlaceholder={labels.searchPlaceholder}
+        searchAction={labels.searchAction}
         resetLabel={labels.reset}
       >
         {canCreate ? (

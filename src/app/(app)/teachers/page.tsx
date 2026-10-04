@@ -93,6 +93,8 @@ export default async function TeachersPage({ searchParams }: { searchParams: Sea
   const labels: TeacherLabels = {
     title: t('teachers.title'),
     search: t('common.search'),
+    searchPlaceholder: t('common.searchPlaceholder'),
+    searchAction: t('common.filter'),
     reset: t('common.reset'),
     noResults: t('common.noResults'),
     empty: t('teachers.empty'),

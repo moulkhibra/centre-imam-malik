@@ -83,6 +83,8 @@ export default async function RoomsPage({ searchParams }: { searchParams: Search
     roomActive: t('room.active'),
     // Shared chrome.
     search: t('common.search'),
+    searchPlaceholder: t('common.searchPlaceholder'),
+    searchAction: t('common.filter'),
     reset: t('common.reset'),
     all: t('common.all'),
     noResults: t('common.noResults'),

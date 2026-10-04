@@ -216,6 +216,8 @@ export function ParentsView({
         q={query.q}
         query={{ ...query, filter: {} }}
         searchLabel={labels.search}
+        searchPlaceholder={labels.searchPlaceholder}
+        searchAction={labels.searchAction}
         resetLabel={labels.reset}
       >
         {canCreate ? (

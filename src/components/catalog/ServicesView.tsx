@@ -252,6 +252,8 @@ export function ServicesView({
         query={{ sort: query.sort, dir: query.dir, pageSize: query.pageSize, filter: filterRecord }}
         filters={toolbarFilters}
         searchLabel={labels.search}
+        searchPlaceholder={labels.searchPlaceholder}
+        searchAction={labels.searchAction}
         resetLabel={labels.reset}
       >
         {canManage ? (

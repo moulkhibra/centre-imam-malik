@@ -155,6 +155,8 @@ export type CatalogLabels = Pick<
   PeopleLabels,
   | 'title'
   | 'search'
+  | 'searchPlaceholder'
+  | 'searchAction'
   | 'reset'
   | 'all'
   | 'noResults'

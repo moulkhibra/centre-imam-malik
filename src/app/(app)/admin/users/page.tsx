@@ -132,6 +132,8 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
 
   const labels: UsersViewLabels = {
     search: t('common.search'),
+    searchPlaceholder: t('common.searchPlaceholder'),
+    searchAction: t('common.filter'),
     reset: t('common.reset'),
     all: t('common.all'),
     none: t('common.none'),
