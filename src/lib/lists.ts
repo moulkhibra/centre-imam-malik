@@ -21,6 +21,24 @@ export const DEFAULT_PAGE_SIZE = 25;
 export const MAX_PAGE_SIZE = 100;
 
 export type SortDirection = 'asc' | 'desc';
+
+/**
+ * The term a list search should match, as a plain substring.
+ *
+ * Prisma's `contains` compiles to a SQL `LIKE` and gives no way to add an
+ * `ESCAPE` clause, so `%` and `_` cannot be escaped: they are dropped instead.
+ * A search can then match *fewer* rows than the operator typed (a name
+ * containing `_` is not findable by typing it), which is the safe direction -
+ * a stray `%` must never turn a filtered list into the whole list.
+ *
+ * The return value is empty when the term held nothing but wildcards. Callers
+ * must treat that as "matches nothing", never as "no filter": see the callers in
+ * `people/queries.ts` and `users/queries.ts`.
+ */
+export function searchLiteral(q: string): string {
+  return q.replace(/[%_\\]/g, '');
+}
+
 export type SortToggle = { field: string; direction: SortDirection };
 
 const directionSchema = z

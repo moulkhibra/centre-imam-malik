@@ -48,6 +48,10 @@ export async function createUser(
     mustChangePassword?: boolean;
     firstName?: string;
     lastName?: string;
+    phone?: string;
+    /** Links the account to a catalogue teacher (Phase 2B). */
+    teacherId?: string;
+    locale?: string;
   } = {},
 ) {
   const password = options.password ?? 'Passw0rd!2026';
@@ -58,6 +62,9 @@ export async function createUser(
       passwordHash: await hashPassword(password),
       firstName: options.firstName ?? 'Amine',
       lastName: options.lastName ?? 'Test',
+      phone: options.phone,
+      teacherId: options.teacherId,
+      locale: options.locale ?? 'fr',
       role: options.role ?? 'SECRETARY',
       permissions: JSON.stringify(options.permissions ?? []),
       isActive: options.isActive ?? true,

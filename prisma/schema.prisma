@@ -210,6 +210,17 @@ model User {
   updatedAt           DateTime           @updatedAt
   deletedAt           DateTime?
   center              Center             @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  /**
+   * The teacher record this login belongs to, for a user whose role is TEACHER.
+   * A login is not a person: the same human may be a teacher in the catalogue
+   * and a user of the application, and the group/attendance screens read the
+   * teacher row while the session reads the user row. Linking the two is what
+   * stops a teacher account from being a second, unrelated record.
+   *
+   * Unique, so two logins cannot claim the same teacher. ON DELETE SET NULL
+   * because deactivating a teacher must not delete the account that signs in.
+   */
+  teacher             Teacher?            @relation(fields: [teacherId], references: [id], onDelete: SetNull)
   sessions            Session[]
   auditLogs           AuditLog[]
   createdPayments     Payment[]          @relation("PaymentCreatedBy")
@@ -223,6 +234,7 @@ model User {
   notificationsRead   Notification[]     @relation("NotificationReadBy")
   certificatesIssued  Certificate[]      @relation("CertificateIssuedBy")
   createdById         String?
+  teacherId           String?            @unique
 
   @@unique([email])
   @@index([centerId, role, isActive])
@@ -374,6 +386,8 @@ model Teacher {
   exams             Exam[]
   grades            Grade[]
   trainings         TrainingProgram[]
+  /** The application account this teacher signs in with, when there is one. */
+  account           User?
 
   @@unique([centerId, code])
   @@index([centerId, status, deletedAt])

@@ -90,10 +90,20 @@ describe('navigation manifest', () => {
  * screen becomes visible before its page exists.
  */
 describe('phase 2 delivery', () => {
-  const SHIPPED = ['/students', '/parents', '/teachers', '/settings/academics', '/settings/services', '/settings/rooms'];
+  const SHIPPED = [
+    '/students',
+    '/parents',
+    '/teachers',
+    '/settings/academics',
+    '/settings/services',
+    '/settings/rooms',
+    // Phase 2B
+    '/admin/users',
+    '/settings',
+  ];
 
   /** Deferred to the administration block: declared, but no screen yet. */
-  const DEFERRED = ['/admin/users', '/settings'];
+  const DEFERRED = ['/admin/audit', '/admin/backup'];
 
   it('marks phase 2 as implemented', () => {
     expect(CURRENT_PHASE).toBe(2);
@@ -105,9 +115,8 @@ describe('phase 2 delivery', () => {
   });
 
   it('keeps the deferred administration screens out', () => {
-    // User management and centre settings were part of the original Phase 2
-    // roadmap but have no page; they stay invisible until one does, which the
-    // route-existence tests above enforce.
+    // The audit log and the backup screen are declared but have no page; they stay
+    // invisible until one does, which the route-existence tests above enforce.
     const visible = visibleNavItems().map((item) => item.href);
     for (const href of DEFERRED) expect(visible, `${href} has no page yet`).not.toContain(href);
   });
@@ -123,11 +132,14 @@ describe('phase 2 delivery', () => {
     for (const href of DEFERRED) expect(isRouteAvailable(href)).toBe(false);
   });
 
-  it('reports the academics sub-screens of a deferred route as unavailable too', () => {
-    // `/settings` has no page, and because `isRouteAvailable` matches on the
-    // prefix, nothing under /settings may leak through it.
+  it('does not report an undeclared path under a visible route as available', () => {
+    // `/settings` is both a screen of its own and the parent of the three
+    // catalogue screens. The catalogue entries answer for themselves, and nothing
+    // else under `/settings` may be reported as shipped.
     expect(isRouteAvailable('/settings/academics')).toBe(true);
     expect(isRouteAvailable('/settings/unknown')).toBe(false);
+    expect(isRouteAvailable('/admin/users/unknown')).toBe(false);
+    expect(isRouteAvailable('/admin/audit')).toBe(false);
   });
 
   it('groups the catalogue under one section', () => {

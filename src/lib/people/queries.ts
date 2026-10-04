@@ -1,7 +1,7 @@
 import '@/lib/utils/server-only';
 import { prisma } from '@/lib/db/client';
 import type { Prisma } from '@/generated/prisma/client';
-import { listQuery, pageInfo, type PageInfo } from '@/lib/lists';
+import { listQuery, pageInfo, searchLiteral, type PageInfo } from '@/lib/lists';
 import {
   parentFilterSchema,
   studentFilterSchema,
@@ -93,19 +93,6 @@ export type TeacherListRow = {
 // --- Where builders ---------------------------------------------------------
 
 /**
- * Makes a search term safe to hand to Prisma's `contains`.
- *
- * `contains` compiles to `LIKE '%' || ? || '%'` and Prisma emits no
- * `ESCAPE '\'` clause, so a backslash escape would be read as a literal
- * backslash: escaping `a_b` to `a\_b` produced a pattern that matched only a
- * row containing a real backslash. Wildcards are dropped instead, which keeps
- * the term a plain substring and stops a stray `%` from matching every row.
- */
-function stripLikeWildcards(q: string): string {
-  return q.replace(/[%_\\]/g, '');
-}
-
-/**
  * The search predicate for a term, or `undefined` when the term cannot match.
  *
  * A term made only of wildcards (`q = '%'`) strips down to the empty string,
@@ -126,7 +113,7 @@ const PERSON_SEARCH_FIELDS = ['firstName', 'lastName', 'code', 'cin', 'phone', '
 type SearchPredicate = Array<Record<string, Record<string, unknown>>>;
 
 function searchTerm(q: string): SearchPredicate {
-  const term = stripLikeWildcards(q);
+  const term = searchLiteral(q);
   if (!term) return [{ id: { in: [] } }];
   return PERSON_SEARCH_FIELDS.map((field) => ({ [field]: { contains: term } }));
 }

@@ -37,11 +37,15 @@ const LATIN_NAME = /^[\p{L}\s'’\-.,]{2,80}$/u;
  *
  * They were copy-pasted into all three schemas, which is how the wording ended
  * up translated three times; one helper keeps the three screens in step.
+ *
+ * Exported because the Phase 2B account form needs the very same rules: an
+ * account is a person, and a user whose name its schema would refuse creates an
+ * account the teacher form would have rejected.
  */
-const givenName = () =>
+export const givenName = () =>
   z.string({ error: vmsg('fieldRequired') }).trim().min(2, vmsg('firstNameTooShort')).max(80, vmsg('firstNameTooLong')).regex(LATIN_NAME, vmsg('firstNameInvalid'));
 
-const familyName = () =>
+export const familyName = () =>
   z.string({ error: vmsg('fieldRequired') }).trim().min(2, vmsg('lastNameTooShort')).max(80, vmsg('lastNameTooLong')).regex(LATIN_NAME, vmsg('lastNameInvalid'));
 
 /** Optional free-text field: empty string is normalised to NULL, not ''. */
@@ -257,8 +261,11 @@ export const roomUpdateSchema = roomCreateSchema;
  *
  * `ALL` is the neutral value and is stripped from the URL by `listHref`, so a
  * default view has no query string at all.
+ *
+ * `allOr` is exported for the Phase 2B screens, which filter on a closed set of
+ * their own (a role, an account state).
  */
-const allOr = <T extends readonly [string, ...string[]]>(values: T) =>
+export const allOr = <T extends readonly [string, ...string[]]>(values: T) =>
   z.union([z.literal('ALL'), z.enum(values)]).catch('ALL' as never).default('ALL' as never);
 
 export const studentFilterSchema = z.object({

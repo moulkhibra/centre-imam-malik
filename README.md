@@ -49,6 +49,7 @@ données existantes.
 | Arrêter | `stop.bat` | `Ctrl+C` dans le terminal |
 | Sauvegarder | `backup.bat` | `./backup.sh` |
 | Restaurer | `backup.bat --restore <fichier>` | `./backup.sh --restore <fichier>` |
+| Réinitialiser admin | (script interactif) | `npm run admin:reset` |
 
 L'adresse et le port d'écoute sont ceux saisis à l'installation (fichier `.env`).
 Le premier démarrage compile l'application ; les suivants démarrent
@@ -69,6 +70,24 @@ npm run backup -- --restore backups/cim-....tar.gz
 
 Restaurez toujours l'application **arrêtée** : le fichier de base est remplacé,
 et une copie de sécurité horodatée est conservée à côté.
+
+### Mot de passe administrateur oublié
+
+Un administrateur connecté remet un mot de passe depuis
+**Administration → Utilisateurs**. Si plus aucun administrateur ne peut se
+connecter, la commande de secours est disponible dans le dossier de
+l'installation :
+
+```bash
+npm run admin:reset
+```
+
+Elle demande l'adresse e-mail puis le nouveau mot de passe **deux fois**, sans
+l'afficher, et n'accepte que les comptes `ADMIN`. Comme l'écran, elle impose le
+changement à la connexion suivante et ferme toutes les sessions ouvertes ; elle
+écrit aussi une entrée `PASSWORD_RESET` dans le journal d'activité, sans le
+mot de passe. La commande refuse de travailler sur une base située hors du dossier
+`prisma/` du projet.
 
 ---
 

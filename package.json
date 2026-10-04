@@ -30,7 +30,8 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:report": "playwright show-report",
     "verify:pdf": "tsx scripts/verify-arabic-pdf.tsx",
-    "backup": "node scripts/backup.mjs"
+    "backup": "node scripts/backup.mjs",
+    "admin:reset": "tsx scripts/admin-reset.ts"
   },
   "dependencies": {
     "@fontsource/cairo": "^5.3.0",

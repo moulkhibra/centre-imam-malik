@@ -68,6 +68,34 @@ export const optionalCinSchema = z
 export const cuidSchema = z.string({ error: vmsg('fieldRequired') }).trim().min(1, vmsg('idRequired')).max(64, vmsg('idRequired'));
 
 /**
+ * An optional foreign key, blank meaning "no link".
+ *
+ * A form that offers a select submits `""` for "none", and an id column must
+ * never store the empty string: the join would look present and match nothing.
+ * `null` is the only correct absence, so both spellings are folded into it.
+ */
+export const optionalCuidSchema = z
+  .union([z.literal(''), cuidSchema])
+  .optional()
+  .transform((v) => (v ? v : null));
+
+/**
+ * An optional free-text column the form is allowed to leave empty.
+ *
+ * Same reason as `optionalCuidSchema`, for every nullable `String?` column the
+ * Phase 2 screens edit: an untouched `<input>` posts `""`, and a `String?` that
+ * can only be null is written as null. Stored as null, an empty column and an
+ * absent one read the same everywhere.
+ */
+export function optionalTrimmedTextSchema(max: number) {
+  return z
+    .union([z.literal(''), z.string().trim().max(max, vmsg('textTooLong'))])
+    .optional()
+    .transform((v) => (v || null));
+}
+
+
+/**
  * Date input from HTML <input type="date"> is always "YYYY-MM-DD".
  *
  * The calendar check is explicit rather than `new Date(v)`: JavaScript rolls

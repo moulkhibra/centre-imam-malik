@@ -16,7 +16,21 @@ import type { AuthUser } from '@/lib/auth/permissions';
  * completed. This is a known trade-off, recorded in the Phase 2 report.
  */
 
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'RESTORE';
+export type AuditAction =
+  | 'CREATE'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'RESTORE'
+  /**
+   * An account's role or extra permissions changed. Not an `UPDATE`: the journal
+   * has to answer "who gained what, and when" without reading metadata, and a
+   * role change is the one edit that decides what somebody can reach.
+   */
+  | 'PERMISSION_CHANGE'
+  /** A password was imposed by an administrator rather than chosen by its owner. */
+  | 'PASSWORD_RESET'
+  /** Centre identity, contact details or appearance. */
+  | 'SETTINGS_CHANGE';
 
 export type AuditEntity =
   | 'Student'
@@ -25,7 +39,9 @@ export type AuditEntity =
   | 'AcademicLevel'
   | 'Subject'
   | 'Service'
-  | 'Room';
+  | 'Room'
+  | 'User'
+  | 'Center';
 
 async function requestMeta(): Promise<{ ip: string | null; ua: string | null }> {
   try {

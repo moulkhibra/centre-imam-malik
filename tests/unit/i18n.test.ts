@@ -136,6 +136,77 @@ describe('translation dictionaries', () => {
   });
 });
 
+/**
+ * The Phase 2B namespaces.
+ *
+ * Both screens are read in both languages, and the account screen is read by an
+ * administrator who may well have chosen Arabic. A missing key is already caught
+ * by the parity and the static-source checks above; what those cannot see is a
+ * key that exists on both sides with the *French* sentence copied into the
+ * Arabic one, which is exactly the defect the Arabic wording tests above were
+ * written for.
+ */
+describe('users and settings namespaces', () => {
+  const t = createTranslator('fr');
+  const tAr = createTranslator('ar');
+  const NAMESPACES = ['users', 'settings'] as const;
+
+  function keysIn(locale: unknown, namespace: string): string[] {
+    return [...collectPaths(locale)].filter((key) => key.startsWith(`${namespace}.`));
+  }
+
+  it('defines every key of both namespaces in the two languages', () => {
+    for (const namespace of NAMESPACES) {
+      const frKeys = keysIn(fr, namespace);
+      expect(frKeys.length, `${namespace}.* is empty`).toBeGreaterThan(10);
+      for (const key of frKeys) {
+        const arabic = tAr(key);
+        expect(arabic, `missing ${key} in ar`).not.toBe(key);
+        expect(arabic.trim(), `empty ${key} in ar`).not.toBe('');
+      }
+    }
+  });
+
+  it('writes the Arabic side of both namespaces in Arabic', () => {
+    // The dictionary is the only place an Arabic sentence can leak in from a
+    // copy-paste, and it would pass every structural check above.
+    const latins: string[] = [];
+    for (const namespace of NAMESPACES) {
+      for (const key of keysIn(ar, namespace)) {
+        const value = tAr(key);
+        // A few values are deliberately language-neutral: a role name is shown as
+        // a badge, a code, a hex colour. Everything else must contain an Arabic
+        // character, otherwise the Arabic screen shows a French sentence.
+        if (/^[A-Z0-9#._/-]+$/.test(value.trim())) continue;
+        if (!/[\u0600-\u06FF]/.test(value)) latins.push(`${key} = ${value}`);
+      }
+    }
+    expect(latins).toEqual([]);
+  });
+
+  it('names the settings sections and the account actions the interface shows', () => {
+    expect(t('users.title')).toBe('Utilisateurs');
+    expect(tAr('users.title')).toMatch(/[\u0600-\u06FF]/);
+    for (const key of ['users.new', 'users.resetPassword', 'users.deactivate', 'users.activate', 'users.permissions']) {
+      expect(t(key), key).not.toBe(key);
+      expect(tAr(key), key).not.toBe(key);
+    }
+    for (const key of ['settings.identity', 'settings.contact', 'settings.appearance', 'settings.documents', 'settings.readOnly']) {
+      expect(t(key), key).not.toBe(key);
+      expect(tAr(key), key).not.toBe(key);
+    }
+  });
+
+  it('translates the banner the account guards raise', () => {
+    // These are `errors.*` keys pushed by the Server Actions, so an Arabic
+    // administrator refusing to lock themselves out would read a French sentence.
+    for (const key of ['errors.lastAdmin', 'errors.selfAccessChange', 'errors.userNotFound', 'errors.teacherNotFound', 'errors.teacherAlreadyLinked', 'errors.centerNotFound']) {
+      expect(t(key), key).not.toBe(key);
+      expect(tAr(key), key).toMatch(/[\u0600-\u06FF]/);
+    }
+  });
+});
+
 /** Reads a dotted path out of a dictionary; used by the placeholder comparison. */
 function resolve(dict: unknown, dotted: string): string | undefined {
   let current: unknown = dict;

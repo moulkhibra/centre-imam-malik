@@ -108,6 +108,101 @@ function hydrate(
   };
 }
 
+/**
+ * Every field the settings form owns, for one specific centre.
+ *
+ * Deliberately not `getActiveCenter`: the screen edits `user.centerId`, and
+ * reading whichever centre happens to be flagged `active` would show - and then
+ * overwrite - a different row the day a second centre is installed. The values
+ * are returned as the form needs them (empty string instead of null) because a
+ * controlled input cannot hold null.
+ */
+export type CenterSettingsFormValues = {
+  code: string;
+  nameFr: string;
+  nameAr: string;
+  legalName: string;
+  address: string;
+  city: string;
+  phone: string;
+  whatsapp: string;
+  email: string;
+  facebook: string;
+  instagram: string;
+  website: string;
+  logoPath: string;
+  primaryColor: string;
+  secondaryColor: string;
+  timezone: string;
+  locale: Locale;
+  receiptFooterFr: string;
+  receiptFooterAr: string;
+  certificateFooterFr: string;
+  certificateFooterAr: string;
+  directorNameFr: string;
+  directorNameAr: string;
+};
+
+export const getCenterSettingsFormValues = cache(
+  async (centerId: string): Promise<CenterSettingsFormValues | null> => {
+    const center = await prisma.center.findUnique({
+      where: { id: centerId },
+      select: {
+        code: true,
+        nameFr: true,
+        nameAr: true,
+        legalName: true,
+        address: true,
+        city: true,
+        phone: true,
+        whatsapp: true,
+        email: true,
+        facebook: true,
+        instagram: true,
+        website: true,
+        logoPath: true,
+        primaryColor: true,
+        secondaryColor: true,
+        timezone: true,
+      },
+    });
+    if (!center) return null;
+
+    const settings = await getSettingsMap(centerId);
+    // A key the centre has never set falls back to the shipped default, and a key
+    // the reference data does not know falls back to empty: both mean "nothing to
+    // show yet", never an exception while filling a form.
+    const value = (key: string) =>
+      settings.get(key) ?? (DEFAULT_CENTER_SETTINGS as Record<string, string>)[key] ?? '';
+
+    return {
+      code: center.code,
+      nameFr: center.nameFr,
+      nameAr: center.nameAr ?? '',
+      legalName: center.legalName ?? '',
+      address: center.address ?? '',
+      city: center.city ?? '',
+      phone: center.phone ?? '',
+      whatsapp: center.whatsapp ?? '',
+      email: center.email ?? '',
+      facebook: center.facebook ?? '',
+      instagram: center.instagram ?? '',
+      website: center.website ?? '',
+      logoPath: center.logoPath ?? '',
+      primaryColor: center.primaryColor,
+      secondaryColor: center.secondaryColor,
+      timezone: center.timezone,
+      locale: (settings.get('center.locale') as Locale | undefined) ?? DEFAULT_LOCALE,
+      receiptFooterFr: value('receipt.footerFr'),
+      receiptFooterAr: value('receipt.footerAr'),
+      certificateFooterFr: value('certificate.footerFr'),
+      certificateFooterAr: value('certificate.footerAr'),
+      directorNameFr: value('certificate.directorNameFr'),
+      directorNameAr: value('certificate.directorNameAr'),
+    };
+  },
+);
+
 export async function getSettingsMap(centerId: string): Promise<Map<string, string>> {
   const rows = await prisma.centerSetting.findMany({ where: { centerId } });
   return new Map(rows.map((r) => [r.key, r.value]));

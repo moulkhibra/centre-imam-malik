@@ -53,11 +53,14 @@ export type NavSection = {
 /**
  * Highest delivery phase currently implemented. Bumped by each phase.
  *
- * Phase 2 ships the people screens (students, parents, teachers) and the
- * reference catalogue (levels, subjects, languages, services, rooms). User
- * management and centre settings are declared in the manifest but have no
- * screen yet, so they carry a later phase and stay invisible - see the note on
- * the `admin` section.
+ * Phase 2 ships the people screens (students, parents, teachers), the reference
+ * catalogue (levels, subjects, languages, services, rooms), and - in its second
+ * part - the accounts screen and the centre settings screen. Phase 2B therefore
+ * moves those two entries down to 2, which is what makes them appear in the
+ * sidebar: the number is the build, not the sequence number of the task.
+ *
+ * The remaining `admin` entries have no page yet and keep a later phase, so the
+ * note on that section stays true for them.
  */
 export const CURRENT_PHASE = 2;
 
@@ -122,15 +125,16 @@ export const NAV_SECTIONS: NavSection[] = [
     labelKey: 'nav.administration',
     items: [
       { key: 'notifications', href: '/notifications', labelKey: 'notifications.title', icon: IconBell, permission: 'notifications.view', phase: 10 },
-      // No screen exists yet for users or centre settings. They stay declared so
-      // the roadmap is written down, but the phase keeps them out of the sidebar
-      // and tests/unit/navigation.test.ts fails the day one becomes visible
-      // without its page. Phase 2 shipped the people and catalogue screens only;
-      // these two were deferred to the administration block.
-      { key: 'users', href: '/admin/users', labelKey: 'nav.users', icon: IconUsers, permission: 'users.view', phase: 13 },
+      // Phase 2B ships the accounts screen and the centre settings screen, so
+      // both are visible in this build.
+      { key: 'users', href: '/admin/users', labelKey: 'nav.users', icon: IconUsers, permission: 'users.view', phase: 2 },
+      // No screen exists yet for these two. They stay declared so the roadmap is
+      // written down, but the phase keeps them out of the sidebar and
+      // tests/unit/navigation.test.ts fails the day one becomes visible without
+      // its page.
       { key: 'audit', href: '/admin/audit', labelKey: 'nav.auditLog', icon: IconDatabase, permission: 'audit.view', phase: 13 },
       { key: 'backup', href: '/admin/backup', labelKey: 'nav.backup', icon: IconDatabase, permission: 'backups.view', phase: 12 },
-      { key: 'settings', href: '/settings', labelKey: 'nav.centerSettings', icon: IconSettings, permission: 'settings.view', phase: 13 },
+      { key: 'settings', href: '/settings', labelKey: 'nav.centerSettings', icon: IconSettings, permission: 'settings.view', phase: 2 },
     ],
   },
 ];
@@ -153,10 +157,20 @@ export function visibleNavItems(phase: number = CURRENT_PHASE): NavItem[] {
  * Screens outside the navigation (for example a dashboard card linking to a
  * module list) use this to decide between rendering the link and rendering
  * plain text, so the interface never offers a dead end.
+ *
+ * The match is exact, on purpose. It used to accept any path under a visible
+ * item, which was sound while no visible item was also a parent of other
+ * screens; `/settings` now is one - it has its own page *and* holds the three
+ * catalogue screens - so a prefix match would answer "available" for
+ * `/settings/anything`, and the dashboard would start linking to pages that do
+ * not exist. Every link in the application targets a declared entry, so an exact
+ * match is both sufficient and the only answer that cannot over-report.
+ *
+ * A screen with children of its own adds its own entry (a dynamic route such as
+ * `/groups/[id]` is declared as `/groups/:id`), which keeps this function free of
+ * any knowledge of the App Router's file tree.
  */
 export function isRouteAvailable(href: string, phase: number = CURRENT_PHASE): boolean {
-  const path = href.split('?')[0] ?? href;
-  return visibleNavItems(phase).some(
-    (item) => path === item.href || path.startsWith(`${item.href}/`),
-  );
+  const path = (href.split('?')[0] ?? href).replace(/\/$/, '') || '/';
+  return visibleNavItems(phase).some((item) => path === item.href);
 }

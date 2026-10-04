@@ -341,6 +341,7 @@ export const IconAward = ({ className }: IconProps) => svg(<><circle cx="12" cy=
 export const IconFolder = ({ className }: IconProps) => svg(<><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></>, className);
 export const IconBell = ({ className }: IconProps) => svg(<><path d="M18 15V10a6 6 0 1 0-12 0v5l-1.5 3h15z" /><path d="M10 21a2 2 0 0 0 4 0" /></>, className);
 export const IconSettings = ({ className }: IconProps) => svg(<><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" /></>, className);
+export const IconKey = ({ className }: IconProps) => svg(<><circle cx="8" cy="15" r="4" /><path d="M11 12l8-8 2 2-2 2 2 2-3 3-2-2-2 2" /></>, className);
 export const IconShield = ({ className }: IconProps) => svg(<><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" /><path d="M9.5 12l1.8 1.8L15 10" /></>, className);
 export const IconDatabase = ({ className }: IconProps) => svg(<><ellipse cx="12" cy="5.5" rx="8" ry="3" /><path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13" /><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" /></>, className);
 export const IconSearch = ({ className }: IconProps) => svg(<><circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4-4" /></>, className);
