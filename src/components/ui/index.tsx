@@ -63,12 +63,16 @@ const FIELD_BASE =
   'disabled:bg-ink-100 disabled:text-ink-500 read-only:bg-ink-100';
 
 export function Input({ className, invalid, ...props }: InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }) {
-  return <input className={cn(FIELD_BASE, invalid && 'border-danger-600 focus:ring-danger-600', className)} {...props} />;
+  // `aria-invalid` is what tells a screen reader the value was refused; the red
+  // border is only what a sighted reader sees. Set before `{...props}` so a
+  // caller that passes its own wins.
+  return <input aria-invalid={invalid || undefined} className={cn(FIELD_BASE, invalid && 'border-danger-600 focus:ring-danger-600', className)} {...props} />;
 }
 
 export function Textarea({ className, invalid, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & { invalid?: boolean }) {
   return (
     <textarea
+      aria-invalid={invalid || undefined}
       className={cn(FIELD_BASE, 'min-h-20 resize-y', invalid && 'border-danger-600 focus:ring-danger-600', className)}
       {...props}
     />
@@ -77,7 +81,7 @@ export function Textarea({ className, invalid, ...props }: TextareaHTMLAttribute
 
 export function Select({ className, invalid, children, ...props }: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }) {
   return (
-    <select className={cn(FIELD_BASE, 'pe-8', invalid && 'border-danger-600', className)} {...props}>
+    <select aria-invalid={invalid || undefined} className={cn(FIELD_BASE, 'pe-8', invalid && 'border-danger-600', className)} {...props}>
       {children}
     </select>
   );

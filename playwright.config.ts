@@ -44,6 +44,21 @@ export const E2E_PHASE2_ADMIN = {
 };
 
 /** Account deliberately locked out by the failed-login test, and never used elsewhere. */
+/**
+ * Read-only account for the Phase 2B suite.
+ *
+ * DIRECTEUR is the only seeded role holding `users.view` and `settings.view`
+ * without `users.manage` or `settings.manage`, which makes it the one account
+ * that can see both new screens and change nothing on either. SECRETARY cannot
+ * reach them at all and ADMIN can write, so neither can express the difference
+ * the `canManage` flag makes.
+ */
+export const E2E_PHASE2B_DIRECTEUR = {
+  email: 'e2e.phase2b.directeur@example.test',
+  password: 'E2e!Directeur2026',
+  role: 'DIRECTEUR',
+};
+
 export const E2E_LOCKOUT = {
   email: 'e2e.lockout@example.test',
   password: 'E2e!Lockout2026',

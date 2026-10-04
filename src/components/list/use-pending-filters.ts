@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * A filter form whose values are rendered by the server needs to know what the
@@ -17,6 +17,14 @@ import { useRef, useState } from 'react';
  *
  * The rule: keep the edits the server has not adopted yet, and drop them as soon
  * as the URL moves for any other reason.
+ *
+ * One more thing the accumulation has to survive: two changes inside the *same
+ * tick*. Composing the next URL from the values of the render that produced the
+ * handler means the second change reads a snapshot the first has not reached
+ * yet, so the first edit is missing from the URL the user lands on - pick a
+ * stage and a flag quickly and one of the two is dropped. The latest set is
+ * therefore mirrored in a ref that `change` updates synchronously, so a second
+ * change composes from the first one's result rather than from the render.
  */
 
 /** Order-insensitive key for a set of values, so key order cannot fake a change. */
@@ -75,6 +83,23 @@ export function usePendingFilters<T extends Record<string, string>>(serverValues
 
   const values = { ...serverValues, ...pending } as T;
 
+  /**
+   * The set the next navigation would be built from.
+   *
+   * `change` advances it in place, so two changes in one tick accumulate instead
+   * of the second overwriting the first. The effect re-syncs it after a render,
+   * which is what keeps a server render that adopts or drops the pending edits
+   * authoritative - and it is an effect rather than an assignment during render
+   * because `react-hooks/refs` refuses the latter, rightly: a render that is
+   * thrown away must not leave a committed value behind.
+   */
+  const latest = useRef(values);
+  useEffect(() => {
+    // After every render, deliberately: the object identity of `values` changes
+    // on each one, so a dependency list would either re-run anyway or warn.
+    latest.current = values;
+  });
+
   return {
     values,
     /**
@@ -83,7 +108,10 @@ export function usePendingFilters<T extends Record<string, string>>(serverValues
      * `'ALL'`, the tabs page uses `''`).
      */
     change: (name: keyof T & string, value: string): T => {
-      const next = { ...values, [name]: value };
+      const next = { ...latest.current, [name]: value };
+      // Synchronous on purpose: this is what makes a second change in the same
+      // tick compose from the first one.
+      latest.current = next;
       setPending((current) => ({ ...current, [name]: value }));
       askedFor.current = valuesKey(next);
       return next;

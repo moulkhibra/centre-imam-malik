@@ -150,6 +150,8 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
     title: t('users.title'),
     subtitle: t('users.subtitle'),
     name: t('common.name'),
+    firstName: t('common.firstName'),
+    lastName: t('common.lastName'),
     email: t('common.email'),
     role: t('users.role'),
     status: t('users.status'),

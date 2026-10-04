@@ -1,7 +1,14 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { E2E_ADMIN, E2E_DB_PATH, E2E_LOCKOUT, E2E_PHASE2_ADMIN, E2E_STAFF } from '../playwright.config';
+import {
+  E2E_ADMIN,
+  E2E_DB_PATH,
+  E2E_LOCKOUT,
+  E2E_PHASE2_ADMIN,
+  E2E_PHASE2B_DIRECTEUR,
+  E2E_STAFF,
+} from '../playwright.config';
 
 /**
  * Prepares and tears down the end-to-end environment.
@@ -42,7 +49,7 @@ export async function prepareE2eDatabase(): Promise<void> {
     SEED_IS_PRODUCTION_SETUP: 'true',
     SEED_ADMIN_EMAIL: E2E_ADMIN.email,
     SEED_ADMIN_PASSWORD: E2E_ADMIN.password,
-    SEED_ADMIN_FIRST_NAME: 'E2E',
+    SEED_ADMIN_FIRST_NAME: 'Amine',
     SEED_ADMIN_LAST_NAME: 'Administrateur',
   });
 
@@ -62,6 +69,12 @@ export async function prepareE2eDatabase(): Promise<void> {
 /**
  * Adds the accounts the suite needs beyond the administrator.
  *
+ * The first name is a real one, not a marker like `E2E`: `LATIN_NAME` in
+ * `src/lib/validation/people.ts` admits only letters, spaces and punctuation, so
+ * an account called "E2E" cannot be edited at all - every save of it is refused
+ * with "Prénom invalide", and a test that edits the seeded administrator would
+ * be testing the fixture instead of the screen.
+ *
  * Each test that mutates state (first-login password change, lockout) gets its
  * own account, so no test can break another one by running first.
  */
@@ -71,7 +84,7 @@ async function seedE2eUsers(): Promise<void> {
   const { hashPassword } = await import('@/lib/auth/password');
 
   const center = await prisma.center.findFirstOrThrow();
-  const accounts = [E2E_STAFF, E2E_LOCKOUT, E2E_PHASE2_ADMIN];
+  const accounts = [E2E_STAFF, E2E_LOCKOUT, E2E_PHASE2_ADMIN, E2E_PHASE2B_DIRECTEUR];
 
   for (const account of accounts) {
     await prisma.user.create({
@@ -79,7 +92,7 @@ async function seedE2eUsers(): Promise<void> {
         centerId: center.id,
         email: account.email,
         passwordHash: await hashPassword(account.password),
-        firstName: 'E2E',
+        firstName: 'Amine',
         lastName: 'Utilisateur',
         role: account.role,
         locale: 'fr',

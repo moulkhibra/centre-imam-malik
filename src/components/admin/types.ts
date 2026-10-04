@@ -111,6 +111,15 @@ export type UsersViewLabels = {
   new: string;
   edit: string;
   phone: string;
+  /**
+   * Two fields, two labels.
+   *
+   * Both name inputs once carried `common.name` ("Nom"), which made the identity
+   * form announce two identical required fields and put the message for one of
+   * them under whichever came first.
+   */
+  firstName: string;
+  lastName: string;
   language: string;
   initialPassword: string;
   initialPasswordHint: string;

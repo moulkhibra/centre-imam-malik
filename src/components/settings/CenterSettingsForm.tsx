@@ -39,6 +39,19 @@ export type SettingsFormState = {
   error?: string;
   errorKey?: ErrorMessage;
   fieldErrors?: FieldErrorMap;
+  /**
+   * The refused submission, kept so one bad field does not cost the twenty
+   * fields around it.
+   *
+   * React resets an uncontrolled form when its action returns. Here that means a
+   * single malformed logo path empties the centre's name, its address, the footers
+   * and the colours - twenty minutes of typing, gone because of one field, with
+   * the operator left to reconstruct it from what they remember. The values come
+   * back in the state and the fields are remounted with them.
+   */
+  submitted?: Record<string, string>;
+  /** Increments per refusal, so two identical refusals still remount the fields. */
+  attempt?: number;
 };
 
 const INITIAL_STATE: SettingsFormState = { ok: false };
@@ -75,10 +88,23 @@ export function CenterSettingsForm({
 }) {
   const router = useRouter();
   const [state, formAction] = useActionState<SettingsFormState, FormData>(
-    async (_previous, formData) => {
+    async (previous, formData) => {
+      const attempt = (previous.attempt ?? 0) + 1;
+      const submitted = Object.fromEntries(
+        [...formData.entries()]
+          .filter(([, value]) => typeof value === 'string')
+          .map(([key, value]) => [key, String(value)]),
+      );
+
       const parsed = centerSettingsSchema.safeParse(Object.fromEntries(formData.entries()));
       if (!parsed.success) {
-        return { ok: false, error: labels.error, fieldErrors: issuesToFieldErrors(parsed.error.issues) };
+        return {
+          ok: false,
+          error: labels.error,
+          fieldErrors: issuesToFieldErrors(parsed.error.issues),
+          submitted,
+          attempt,
+        };
       }
 
       try {
@@ -94,9 +120,11 @@ export function CenterSettingsForm({
           error: result.error,
           errorKey: result.errorKey,
           fieldErrors: result.fieldErrors,
+          submitted,
+          attempt,
         };
       } catch {
-        return { ok: false, error: labels.error };
+        return { ok: false, error: labels.error, submitted, attempt };
       }
     },
     INITIAL_STATE,
@@ -107,6 +135,13 @@ export function CenterSettingsForm({
   // Not disabled after a save: the confirmation is a message, not a lock. A
   // second correction has to be possible without a page reload.
   const disabled = !canManage;
+
+  /**
+   * What a field shows: the refused submission if there was one, otherwise the
+   * centre as the server resolved it.
+   */
+  const shown = (name: keyof SettingsFormValues): string =>
+    state.submitted?.[name] ?? String(values[name]);
 
   return (
     <form action={formAction} className="space-y-4" noValidate>
@@ -122,121 +157,126 @@ export function CenterSettingsForm({
 
       {state.ok ? <Alert tone="success">{labels.saved}</Alert> : null}
 
-      <Card>
-        <SectionTitle section={sections.identity} />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={labels.fields.code} htmlFor="center-code" required error={fieldErrors.code?.[0]}>
-            <Input id="center-code" name="code" defaultValue={values.code} dir="ltr" required maxLength={20} disabled={disabled} invalid={invalid('code')} />
-          </Field>
-          <Field label={labels.fields.nameFr} htmlFor="center-nameFr" required error={fieldErrors.nameFr?.[0]}>
-            <Input id="center-nameFr" name="nameFr" defaultValue={values.nameFr} dir="ltr" required maxLength={120} disabled={disabled} invalid={invalid('nameFr')} />
-          </Field>
-          <Field label={labels.fields.nameAr} htmlFor="center-nameAr" error={fieldErrors.nameAr?.[0]}>
-            <Input id="center-nameAr" name="nameAr" defaultValue={values.nameAr} dir="rtl" lang="ar" maxLength={120} disabled={disabled} invalid={invalid('nameAr')} />
-          </Field>
-          <Field label={labels.fields.legalName} htmlFor="center-legalName" error={fieldErrors.legalName?.[0]}>
-            <Input id="center-legalName" name="legalName" defaultValue={values.legalName} dir="ltr" maxLength={120} disabled={disabled} invalid={invalid('legalName')} />
-          </Field>
-        </div>
-      </Card>
+      {/* Keyed on the attempt count: `defaultValue` is only read when a field
+          mounts, so without this the restored values would stay in the state and
+          never reach the page. */}
+      <div key={state.attempt ?? 0}>
+        <Card>
+          <SectionTitle section={sections.identity} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label={labels.fields.code} htmlFor="center-code" required error={fieldErrors.code?.[0]}>
+              <Input id="center-code" name="code" defaultValue={shown('code')} dir="ltr" required maxLength={20} disabled={disabled} invalid={invalid('code')} />
+            </Field>
+            <Field label={labels.fields.nameFr} htmlFor="center-nameFr" required error={fieldErrors.nameFr?.[0]}>
+              <Input id="center-nameFr" name="nameFr" defaultValue={shown('nameFr')} dir="ltr" required maxLength={120} disabled={disabled} invalid={invalid('nameFr')} />
+            </Field>
+            <Field label={labels.fields.nameAr} htmlFor="center-nameAr" error={fieldErrors.nameAr?.[0]}>
+              <Input id="center-nameAr" name="nameAr" defaultValue={shown('nameAr')} dir="rtl" lang="ar" maxLength={120} disabled={disabled} invalid={invalid('nameAr')} />
+            </Field>
+            <Field label={labels.fields.legalName} htmlFor="center-legalName" error={fieldErrors.legalName?.[0]}>
+              <Input id="center-legalName" name="legalName" defaultValue={shown('legalName')} dir="ltr" maxLength={120} disabled={disabled} invalid={invalid('legalName')} />
+            </Field>
+          </div>
+        </Card>
 
-      <Card>
-        <SectionTitle section={sections.contact} />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={labels.fields.address} htmlFor="center-address" error={fieldErrors.address?.[0]}>
-            <Input id="center-address" name="address" defaultValue={values.address} dir="ltr" maxLength={200} disabled={disabled} invalid={invalid('address')} />
-          </Field>
-          <Field label={labels.fields.city} htmlFor="center-city" error={fieldErrors.city?.[0]}>
-            <Input id="center-city" name="city" defaultValue={values.city} dir="ltr" maxLength={80} disabled={disabled} invalid={invalid('city')} />
-          </Field>
-          <Field label={labels.fields.phone} htmlFor="center-phone" error={fieldErrors.phone?.[0]}>
-            <Input id="center-phone" name="phone" type="tel" defaultValue={values.phone} dir="ltr" maxLength={25} disabled={disabled} invalid={invalid('phone')} />
-          </Field>
-          <Field label={labels.fields.whatsapp} htmlFor="center-whatsapp" error={fieldErrors.whatsapp?.[0]}>
-            <Input id="center-whatsapp" name="whatsapp" type="tel" defaultValue={values.whatsapp} dir="ltr" maxLength={25} disabled={disabled} invalid={invalid('whatsapp')} />
-          </Field>
-          <Field label={labels.fields.email} htmlFor="center-email" error={fieldErrors.email?.[0]}>
-            <Input id="center-email" name="email" type="email" defaultValue={values.email} dir="ltr" maxLength={160} disabled={disabled} invalid={invalid('email')} />
-          </Field>
-          <Field label={labels.fields.facebook} htmlFor="center-facebook" error={fieldErrors.facebook?.[0]}>
-            <Input id="center-facebook" name="facebook" defaultValue={values.facebook} dir="ltr" maxLength={160} disabled={disabled} invalid={invalid('facebook')} />
-          </Field>
-          <Field label={labels.fields.instagram} htmlFor="center-instagram" error={fieldErrors.instagram?.[0]}>
-            <Input id="center-instagram" name="instagram" defaultValue={values.instagram} dir="ltr" maxLength={160} disabled={disabled} invalid={invalid('instagram')} />
-          </Field>
-          <Field label={labels.fields.website} htmlFor="center-website" error={fieldErrors.website?.[0]}>
-            <Input id="center-website" name="website" defaultValue={values.website} dir="ltr" maxLength={160} disabled={disabled} invalid={invalid('website')} />
-          </Field>
-        </div>
-      </Card>
+        <Card>
+          <SectionTitle section={sections.contact} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label={labels.fields.address} htmlFor="center-address" error={fieldErrors.address?.[0]}>
+              <Input id="center-address" name="address" defaultValue={shown('address')} dir="ltr" maxLength={200} disabled={disabled} invalid={invalid('address')} />
+            </Field>
+            <Field label={labels.fields.city} htmlFor="center-city" error={fieldErrors.city?.[0]}>
+              <Input id="center-city" name="city" defaultValue={shown('city')} dir="ltr" maxLength={80} disabled={disabled} invalid={invalid('city')} />
+            </Field>
+            <Field label={labels.fields.phone} htmlFor="center-phone" error={fieldErrors.phone?.[0]}>
+              <Input id="center-phone" name="phone" type="tel" defaultValue={shown('phone')} dir="ltr" maxLength={25} disabled={disabled} invalid={invalid('phone')} />
+            </Field>
+            <Field label={labels.fields.whatsapp} htmlFor="center-whatsapp" error={fieldErrors.whatsapp?.[0]}>
+              <Input id="center-whatsapp" name="whatsapp" type="tel" defaultValue={shown('whatsapp')} dir="ltr" maxLength={25} disabled={disabled} invalid={invalid('whatsapp')} />
+            </Field>
+            <Field label={labels.fields.email} htmlFor="center-email" error={fieldErrors.email?.[0]}>
+              <Input id="center-email" name="email" type="email" defaultValue={shown('email')} dir="ltr" maxLength={160} disabled={disabled} invalid={invalid('email')} />
+            </Field>
+            <Field label={labels.fields.facebook} htmlFor="center-facebook" error={fieldErrors.facebook?.[0]}>
+              <Input id="center-facebook" name="facebook" defaultValue={shown('facebook')} dir="ltr" maxLength={160} disabled={disabled} invalid={invalid('facebook')} />
+            </Field>
+            <Field label={labels.fields.instagram} htmlFor="center-instagram" error={fieldErrors.instagram?.[0]}>
+              <Input id="center-instagram" name="instagram" defaultValue={shown('instagram')} dir="ltr" maxLength={160} disabled={disabled} invalid={invalid('instagram')} />
+            </Field>
+            <Field label={labels.fields.website} htmlFor="center-website" error={fieldErrors.website?.[0]}>
+              <Input id="center-website" name="website" defaultValue={shown('website')} dir="ltr" maxLength={160} disabled={disabled} invalid={invalid('website')} />
+            </Field>
+          </div>
+        </Card>
 
-      <Card>
-        <SectionTitle section={sections.appearance} />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <ColorField
-            id="center-primaryColor"
-            name="primaryColor"
-            label={labels.fields.primaryColor}
-            value={values.primaryColor}
-            disabled={disabled}
-            error={fieldErrors.primaryColor?.[0]}
-          />
-          <ColorField
-            id="center-secondaryColor"
-            name="secondaryColor"
-            label={labels.fields.secondaryColor}
-            value={values.secondaryColor}
-            disabled={disabled}
-            error={fieldErrors.secondaryColor?.[0]}
-          />
-          <Field label={labels.fields.timezone} htmlFor="center-timezone" required error={fieldErrors.timezone?.[0]}>
-            <Input id="center-timezone" name="timezone" defaultValue={values.timezone} dir="ltr" required maxLength={60} disabled={disabled} invalid={invalid('timezone')} />
-          </Field>
-          <Field label={labels.fields.locale} htmlFor="center-locale" required error={fieldErrors.locale?.[0]}>
-            <Select id="center-locale" name="locale" defaultValue={values.locale} disabled={disabled} invalid={invalid('locale')}>
-              {Object.entries(labels.localeLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <LogoField
-            id="center-logoPath"
-            name="logoPath"
-            label={labels.fields.logoPath}
-            hint={labels.fields.logoPathHint}
-            altLabel={labels.logoPreviewAlt}
-            value={values.logoPath}
-            disabled={disabled}
-            error={fieldErrors.logoPath?.[0]}
-          />
-        </div>
-      </Card>
+        <Card>
+          <SectionTitle section={sections.appearance} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ColorField
+              id="center-primaryColor"
+              name="primaryColor"
+              label={labels.fields.primaryColor}
+              value={shown('primaryColor')}
+              disabled={disabled}
+              error={fieldErrors.primaryColor?.[0]}
+            />
+            <ColorField
+              id="center-secondaryColor"
+              name="secondaryColor"
+              label={labels.fields.secondaryColor}
+              value={shown('secondaryColor')}
+              disabled={disabled}
+              error={fieldErrors.secondaryColor?.[0]}
+            />
+            <Field label={labels.fields.timezone} htmlFor="center-timezone" required error={fieldErrors.timezone?.[0]}>
+              <Input id="center-timezone" name="timezone" defaultValue={shown('timezone')} dir="ltr" required maxLength={60} disabled={disabled} invalid={invalid('timezone')} />
+            </Field>
+            <Field label={labels.fields.locale} htmlFor="center-locale" required error={fieldErrors.locale?.[0]}>
+              <Select id="center-locale" name="locale" defaultValue={shown('locale')} disabled={disabled} invalid={invalid('locale')}>
+                {Object.entries(labels.localeLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <LogoField
+              id="center-logoPath"
+              name="logoPath"
+              label={labels.fields.logoPath}
+              hint={labels.fields.logoPathHint}
+              altLabel={labels.logoPreviewAlt}
+              value={shown('logoPath')}
+              disabled={disabled}
+              error={fieldErrors.logoPath?.[0]}
+            />
+          </div>
+        </Card>
 
-      <Card>
-        <SectionTitle section={sections.documents} />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={labels.fields.receiptFooterFr} htmlFor="center-receiptFooterFr" error={fieldErrors.receiptFooterFr?.[0]}>
-            <Textarea id="center-receiptFooterFr" name="receiptFooterFr" defaultValue={values.receiptFooterFr} dir="ltr" rows={3} maxLength={500} disabled={disabled} invalid={invalid('receiptFooterFr')} />
-          </Field>
-          <Field label={labels.fields.receiptFooterAr} htmlFor="center-receiptFooterAr" error={fieldErrors.receiptFooterAr?.[0]}>
-            <Textarea id="center-receiptFooterAr" name="receiptFooterAr" defaultValue={values.receiptFooterAr} dir="rtl" lang="ar" rows={3} maxLength={500} disabled={disabled} invalid={invalid('receiptFooterAr')} />
-          </Field>
-          <Field label={labels.fields.certificateFooterFr} htmlFor="center-certificateFooterFr" error={fieldErrors.certificateFooterFr?.[0]}>
-            <Textarea id="center-certificateFooterFr" name="certificateFooterFr" defaultValue={values.certificateFooterFr} dir="ltr" rows={3} maxLength={500} disabled={disabled} invalid={invalid('certificateFooterFr')} />
-          </Field>
-          <Field label={labels.fields.certificateFooterAr} htmlFor="center-certificateFooterAr" error={fieldErrors.certificateFooterAr?.[0]}>
-            <Textarea id="center-certificateFooterAr" name="certificateFooterAr" defaultValue={values.certificateFooterAr} dir="rtl" lang="ar" rows={3} maxLength={500} disabled={disabled} invalid={invalid('certificateFooterAr')} />
-          </Field>
-          <Field label={labels.fields.directorNameFr} htmlFor="center-directorNameFr" error={fieldErrors.directorNameFr?.[0]}>
-            <Input id="center-directorNameFr" name="directorNameFr" defaultValue={values.directorNameFr} dir="ltr" maxLength={120} disabled={disabled} invalid={invalid('directorNameFr')} />
-          </Field>
-          <Field label={labels.fields.directorNameAr} htmlFor="center-directorNameAr" error={fieldErrors.directorNameAr?.[0]}>
-            <Input id="center-directorNameAr" name="directorNameAr" defaultValue={values.directorNameAr} dir="rtl" lang="ar" maxLength={120} disabled={disabled} invalid={invalid('directorNameAr')} />
-          </Field>
-        </div>
-      </Card>
+        <Card>
+          <SectionTitle section={sections.documents} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label={labels.fields.receiptFooterFr} htmlFor="center-receiptFooterFr" error={fieldErrors.receiptFooterFr?.[0]}>
+              <Textarea id="center-receiptFooterFr" name="receiptFooterFr" defaultValue={shown('receiptFooterFr')} dir="ltr" rows={3} maxLength={500} disabled={disabled} invalid={invalid('receiptFooterFr')} />
+            </Field>
+            <Field label={labels.fields.receiptFooterAr} htmlFor="center-receiptFooterAr" error={fieldErrors.receiptFooterAr?.[0]}>
+              <Textarea id="center-receiptFooterAr" name="receiptFooterAr" defaultValue={shown('receiptFooterAr')} dir="rtl" lang="ar" rows={3} maxLength={500} disabled={disabled} invalid={invalid('receiptFooterAr')} />
+            </Field>
+            <Field label={labels.fields.certificateFooterFr} htmlFor="center-certificateFooterFr" error={fieldErrors.certificateFooterFr?.[0]}>
+              <Textarea id="center-certificateFooterFr" name="certificateFooterFr" defaultValue={shown('certificateFooterFr')} dir="ltr" rows={3} maxLength={500} disabled={disabled} invalid={invalid('certificateFooterFr')} />
+            </Field>
+            <Field label={labels.fields.certificateFooterAr} htmlFor="center-certificateFooterAr" error={fieldErrors.certificateFooterAr?.[0]}>
+              <Textarea id="center-certificateFooterAr" name="certificateFooterAr" defaultValue={shown('certificateFooterAr')} dir="rtl" lang="ar" rows={3} maxLength={500} disabled={disabled} invalid={invalid('certificateFooterAr')} />
+            </Field>
+            <Field label={labels.fields.directorNameFr} htmlFor="center-directorNameFr" error={fieldErrors.directorNameFr?.[0]}>
+              <Input id="center-directorNameFr" name="directorNameFr" defaultValue={shown('directorNameFr')} dir="ltr" maxLength={120} disabled={disabled} invalid={invalid('directorNameFr')} />
+            </Field>
+            <Field label={labels.fields.directorNameAr} htmlFor="center-directorNameAr" error={fieldErrors.directorNameAr?.[0]}>
+              <Input id="center-directorNameAr" name="directorNameAr" defaultValue={shown('directorNameAr')} dir="rtl" lang="ar" maxLength={120} disabled={disabled} invalid={invalid('directorNameAr')} />
+            </Field>
+          </div>
+        </Card>
+      </div>
 
       {canManage ? (
         <div className="sticky bottom-0 flex justify-end gap-2 border-t border-ink-200 bg-white/90 py-3 backdrop-blur">

@@ -45,6 +45,23 @@ export type UserFormState = {
   errorKey?: ErrorMessage;
   fieldErrors?: FieldErrorMap;
   savedId?: string;
+  /**
+   * What was submitted, kept so a refused submission can be corrected instead
+   * of retyped.
+   *
+   * React resets an uncontrolled form once its action returns, so the inputs
+   * come back empty whatever the outcome. On a rejected submission that means the
+   * secretary retypes an address and a full name because one field was wrong -
+   * and, on a screen whose whole job is setting a password, retype the password
+   * with it. The values are carried in the state and the inputs are remounted
+   * with them.
+   *
+   * The password is the exception: it is deliberately not restored, so a refused
+   * password never comes back from the server into the DOM.
+   */
+  submitted?: Record<string, string>;
+  /** Increments per refused submission, so an identical second refusal still remounts. */
+  attempt?: number;
 };
 
 const INITIAL_STATE: UserFormState = { ok: false };
@@ -106,9 +123,18 @@ export function UserForm({
   onSaved: () => void;
 }) {
   const [state, formAction] = useActionState<UserFormState, FormData>(
-    async (_previous, rawFormData) => {
+    async (previous, rawFormData) => {
       const formData = withoutBlanks(rawFormData);
       const schema = recordId ? userUpdateSchema : userCreateSchema;
+      const attempt = (previous.attempt ?? 0) + 1;
+
+      // Everything except the password: the fields a refusal must not cost the
+      // user, and the one field it must not put back into the page.
+      const submitted = Object.fromEntries(
+        [...formData.entries()]
+          .filter(([key, value]) => key !== 'password' && typeof value === 'string')
+          .map(([key, value]) => [key, String(value)]),
+      );
 
       const parsed = schema.safeParse(Object.fromEntries(formData.entries()));
       if (!parsed.success) {
@@ -116,6 +142,8 @@ export function UserForm({
           ok: false,
           error: labels.error,
           fieldErrors: issuesToFieldErrors(parsed.error.issues),
+          submitted,
+          attempt,
         };
       }
 
@@ -133,15 +161,24 @@ export function UserForm({
           error: result.error,
           errorKey: result.errorKey,
           fieldErrors: result.fieldErrors,
+          submitted,
+          attempt,
         };
       } catch {
         // The actions catch their own errors, so this branch means the transport
         // itself failed: report it rather than tearing the page down.
-        return { ok: false, error: labels.error };
+        return { ok: false, error: labels.error, submitted, attempt };
       }
     },
     INITIAL_STATE,
   );
+
+  /**
+   * What an input shows: the refused submission if there was one, otherwise the
+   * record as the server resolved it.
+   */
+  const shown = (name: 'email' | 'phone' | 'firstName' | 'lastName' | 'teacherId' | 'locale') =>
+    state.submitted?.[name] ?? String(values[name]);
 
   const fieldErrors = state.fieldErrors ?? {};
   const invalid = (name: string) => Boolean(fieldErrors[name]);
@@ -158,13 +195,16 @@ export function UserForm({
         </Alert>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      {/* Keyed on the attempt count: `defaultValue` is only read when an input
+          mounts, so without this the restored values would sit in the state and
+          never reach the page. */}
+      <div className="grid gap-3 sm:grid-cols-2" key={state.attempt ?? 0}>
         <Field label={labels.email} htmlFor="user-email" required error={fieldErrors.email?.[0]}>
           <Input
             id="user-email"
             name="email"
             type="email"
-            defaultValue={values.email}
+            defaultValue={shown('email')}
             dir="ltr"
             required
             autoComplete="off"
@@ -178,18 +218,18 @@ export function UserForm({
             id="user-phone"
             name="phone"
             type="tel"
-            defaultValue={values.phone}
+            defaultValue={shown('phone')}
             dir="ltr"
             maxLength={25}
             invalid={invalid('phone')}
           />
         </Field>
 
-        <Field label={labels.name} htmlFor="user-lastName" required error={fieldErrors.lastName?.[0]}>
+        <Field label={labels.lastName} htmlFor="user-lastName" required error={fieldErrors.lastName?.[0]}>
           <Input
             id="user-lastName"
             name="lastName"
-            defaultValue={values.lastName}
+            defaultValue={shown('lastName')}
             dir="ltr"
             required
             maxLength={80}
@@ -197,11 +237,11 @@ export function UserForm({
           />
         </Field>
 
-        <Field label={labels.name} htmlFor="user-firstName" required error={fieldErrors.firstName?.[0]}>
+        <Field label={labels.firstName} htmlFor="user-firstName" required error={fieldErrors.firstName?.[0]}>
           <Input
             id="user-firstName"
             name="firstName"
-            defaultValue={values.firstName}
+            defaultValue={shown('firstName')}
             dir="ltr"
             required
             maxLength={80}
@@ -229,7 +269,7 @@ export function UserForm({
           <Select
             id="user-locale"
             name="locale"
-            defaultValue={values.locale}
+            defaultValue={shown('locale')}
             invalid={invalid('locale')}
           >
             {Object.keys(localeLabels).map((value) => (
@@ -250,7 +290,7 @@ export function UserForm({
               <Select
                 id="user-teacherId"
                 name="teacherId"
-                defaultValue={values.teacherId}
+                defaultValue={shown('teacherId')}
                 invalid={invalid('teacherId')}
               >
                 <option value="">{labels.none}</option>

@@ -50,6 +50,7 @@ export function ListToolbar({
     Object.fromEntries(filters.map((filter) => [filter.name, filter.value || 'ALL'])),
   );
 
+
   const hasFilters = Object.values(activeFilters).some((value) => value && value !== 'ALL');
 
   /**

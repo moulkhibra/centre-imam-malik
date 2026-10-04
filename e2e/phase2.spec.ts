@@ -30,7 +30,7 @@ import { E2E_BASE_URL, E2E_PHASE2_ADMIN } from '../playwright.config';
 /** FR and AR headings for the same screen. */
 const SCREENS = [
   { path: '/students', fr: /Élèves/, ar: /التلاميذ/ },
-  { path: '/parents', fr: /Parents/, ar: /الآباء/ },
+  { path: '/parents', fr: /Parents/, ar: /الأولياء/ },
   { path: '/teachers', fr: /Enseignants/, ar: /الأساتذة/ },
   { path: '/settings/academics', fr: /Structure pédagogique/, ar: /البنية التربوية/ },
   // These two pages take their heading from `nav.services` / `group.room`, not
@@ -132,14 +132,28 @@ test.describe('Phase 2 screens', () => {
     await expect(page.locator('main table')).toHaveCount(0);
   });
 
-  test('does not link to the deferred administration screens', async ({ page }) => {
-    // /admin/users and /settings have no page yet; they must stay out of the
-    // navigation rather than 404 on click.
+  test('does not link to the administration screens that still have no page', async ({ page }) => {
+    // `/admin/users` and `/settings` were the two screens this test used to pin
+    // as deferred. They exist as of phase 2B, so the assertion moved to the ones
+    // still without a page: a link to them would 404 on click.
+    //
+    // The two that shipped are waited for rather than read straight away: the
+    // sidebar is a streamed Server Component, and a `hrefs` array read before it
+    // arrives is empty - which passes a `not.toContain` and fails a `toContain`
+    // for reasons that have nothing to do with the navigation.
+    await expect(page.getByRole('link', { name: /utilisateurs/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /paramètres du centre/i })).toBeVisible();
+
     const hrefs = await page.locator('aside nav a').evaluateAll((links) =>
       links.map((link) => link.getAttribute('href')),
     );
-    expect(hrefs).not.toContain('/admin/users');
-    expect(hrefs).not.toContain('/settings');
+    expect(hrefs, '/admin/audit is still deferred').not.toContain('/admin/audit');
+    expect(hrefs, '/admin/backup is still deferred').not.toContain('/admin/backup');
+
+    // The two that shipped are in the sidebar, which is the other half of the
+    // promise: reachable by typing the URL is not shipped.
+    expect(hrefs).toContain('/admin/users');
+    expect(hrefs).toContain('/settings');
   });
 });
 
@@ -848,15 +862,16 @@ test.describe('list filters through the UI', () => {
     // The other half of the same defect, on the other list, and the other
     // direction: here the *first* change is the one lost, because the second
     // composed its URL from a view that did not have the stage yet.
-    await page.evaluate(() => {
-      const choose = (id: string, value: string) => {
-        const control = document.getElementById(id) as HTMLSelectElement;
-        control.value = value;
-        control.dispatchEvent(new Event('change', { bubbles: true }));
-      };
-      choose('filter-stage', 'LYCEE');
-      choose('filter-active', 'false');
-    });
+    //
+    // Two `selectOption` calls back to back, with no navigation awaited between
+    // them: the second arrives while the first is still in flight, which is what
+    // a person changing their mind twice does. Setting `select.value` from
+    // `page.evaluate` and dispatching a synthetic `change` was tried first and
+    // is not a substitute - React patches the `value` setter on the node to track
+    // changes, so the assignment updates the tracker, React concludes the value
+    // did not move, and it drops the event. Half the runs pushed nothing at all.
+    await page.locator('#filter-stage').selectOption('LYCEE');
+    await page.locator('#filter-active').selectOption('false');
 
     await expect(page).toHaveURL(/active=false/);
     await expect(page, 'the stage filter was dropped').toHaveURL(/stage=LYCEE/);
