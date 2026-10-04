@@ -1,8 +1,9 @@
 import { requireUser, can } from '@/lib/auth/permissions';
 import { createTranslator, getLocaleFromCookies } from '@/lib/i18n';
 import { ErrorState, PageHeader } from '@/components/ui';
-import { getCenterSettingsFormValues } from '@/lib/settings/center';
+import { getCenterSettings, getCenterSettingsFormValues } from '@/lib/settings/center';
 import { CenterSettingsForm } from '@/components/settings/CenterSettingsForm';
+import { CenterLogoForm, type CenterLogoLabels } from '@/components/settings/CenterLogoForm';
 import type { SettingsViewLabels } from '@/components/settings/types';
 
 export const dynamic = 'force-dynamic';
@@ -27,9 +28,10 @@ export default async function SettingsPage() {
     return <ErrorState title={createTranslator(locale)('errors.forbidden')} />;
   }
 
-  const [locale, values] = await Promise.all([
+  const [locale, values, center] = await Promise.all([
     getLocaleFromCookies(),
     getCenterSettingsFormValues(user.centerId),
+    getCenterSettings(user.centerId),
   ]);
   const t = createTranslator(locale);
 
@@ -92,10 +94,32 @@ export default async function SettingsPage() {
     readOnly: t('settings.readOnly'),
   };
 
+  const logoLabels: CenterLogoLabels = {
+    title: t('settings.logoUploadTitle'),
+    hint: t('settings.logoUploadHint'),
+    upload: t('settings.logoUpload'),
+    uploadDone: t('settings.logoUploadDone'),
+    remove: t('settings.logoRemove'),
+    removeDone: t('settings.logoRemoveDone'),
+    current: t('settings.logoCurrent'),
+    none: t('settings.logoNone'),
+    file: t('settings.logo'),
+    error: t('common.error'),
+    saving: t('common.loading'),
+  };
+
   return (
     <>
       <PageHeader title={t('settings.title')} description={t('settings.subtitle')} />
-      <CenterSettingsForm values={values} labels={labels} sections={labels.sections} canManage={canManage} />
+      <div className="space-y-4">
+        <CenterSettingsForm values={values} labels={labels} sections={labels.sections} canManage={canManage} />
+        <CenterLogoForm
+          logoUrl={center?.logoUrl ?? null}
+          hasUploadedLogo={Boolean(center?.logoFile)}
+          canManage={canManage}
+          labels={logoLabels}
+        />
+      </div>
     </>
   );
 }

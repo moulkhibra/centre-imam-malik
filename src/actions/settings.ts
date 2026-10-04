@@ -8,11 +8,15 @@ import { AppError, handleError, ok, type ActionResult } from '@/lib/utils/errors
 import { ekey } from '@/lib/validation/messages';
 import { parseForm } from '@/lib/action-utils';
 import {
+  CENTER_SETTING_KEYS,
   centerSettingEntries,
   centerSettingsSchema,
   type CenterSettingsInput,
 } from '@/lib/validation/settings';
 import { DEFAULT_CENTER_SETTINGS } from '@/lib/settings/defaults';
+import { detectImageFormat } from '@/lib/storage/image-signature';
+import { deleteUploadedLogo, saveUploadedLogo } from '@/lib/storage/uploads';
+import { MAX_LOGO_BYTES } from '@/lib/constants';
 
 /**
  * Centre settings mutations (Phase 2B).
@@ -136,4 +140,110 @@ export async function updateCenterSettingsAction(
   } catch (error) {
     return handleError(error, 'updateCenterSettings');
   }
+}
+
+/**
+ * Stores a new centre logo, replacing the previous one.
+ *
+ * Deliberately its own action, and its own form: the settings form is a
+ * `multipart` request only for this field, and a file input inside it would make
+ * every other save carry the image too.
+ *
+ * The order matters. The bytes are checked before anything is written, the file
+ * is written before the setting, and the previous file is deleted after the
+ * transaction - so a refused upload leaves neither a file nor a setting, and a
+ * crash between the two leaves one orphaned file instead of a broken logo.
+ */
+export async function uploadCenterLogoAction(formData: FormData): Promise<ActionResult<{ file: string }>> {
+  try {
+    const actor = await requirePermission('settings.manage');
+
+    const entry = formData.get('logo');
+    if (!(entry instanceof File) || entry.size === 0) {
+      throw new AppError('VALIDATION', 'Aucun fichier reçu', undefined, ekey('logoMissing'));
+    }
+    if (entry.size > MAX_LOGO_BYTES) {
+      throw new AppError('VALIDATION', 'Logo trop volumineux', undefined, ekey('logoTooLarge'));
+    }
+
+    // The bytes decide, never the name or the declared content type.
+    const bytes = new Uint8Array(await entry.arrayBuffer());
+    const format = detectImageFormat(bytes);
+    if (!format) {
+      throw new AppError('VALIDATION', 'Le fichier n\'est pas une image acceptée', undefined, ekey('logoNotAnImage'));
+    }
+
+    const previous = await currentLogoFile(actor.centerId);
+    const storedName = await saveUploadedLogo(bytes, format);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.centerSetting.upsert({
+        where: { centerId_key: { centerId: actor.centerId, key: CENTER_SETTING_KEYS.logoFile } },
+        create: { centerId: actor.centerId, key: CENTER_SETTING_KEYS.logoFile, value: storedName },
+        update: { value: storedName },
+      });
+    });
+
+    await recordChange({
+      user: actor,
+      action: 'SETTINGS_CHANGE',
+      entity: 'Center',
+      entityId: actor.centerId,
+      // The file names, not the image: the audit says which file was replaced so
+      // an auditor can find it in the uploads folder. The bytes are never logged.
+      metadata: { logoFile: storedName, previousLogoFile: previous || null, format },
+    });
+
+    if (previous && previous !== storedName) await deleteUploadedLogo(previous);
+
+    revalidateSettingsViews();
+    return ok({ file: storedName });
+  } catch (error) {
+    return handleError(error, 'uploadCenterLogo');
+  }
+}
+
+/**
+ * Removes the uploaded logo and clears the setting.
+ *
+ * The `Center.logoPath` column is left alone: it belongs to the manual path
+ * field, which the administrator may still be using.
+ */
+export async function removeCenterLogoAction(): Promise<ActionResult> {
+  try {
+    const actor = await requirePermission('settings.manage');
+
+    const previous = await currentLogoFile(actor.centerId);
+    if (!previous) return ok(undefined);
+
+    await prisma.centerSetting.upsert({
+      where: { centerId_key: { centerId: actor.centerId, key: CENTER_SETTING_KEYS.logoFile } },
+      create: { centerId: actor.centerId, key: CENTER_SETTING_KEYS.logoFile, value: '' },
+      update: { value: '' },
+    });
+
+    await recordChange({
+      user: actor,
+      action: 'SETTINGS_CHANGE',
+      entity: 'Center',
+      entityId: actor.centerId,
+      metadata: { logoFile: null, previousLogoFile: previous },
+    });
+
+    await deleteUploadedLogo(previous);
+
+    revalidateSettingsViews();
+    return ok(undefined);
+  } catch (error) {
+    return handleError(error, 'removeCenterLogo');
+  }
+}
+
+/** The stored name of the centre's uploaded logo, or '' when there is none. */
+async function currentLogoFile(centerId: string): Promise<string> {
+  const row = await prisma.centerSetting.findUnique({
+    where: { centerId_key: { centerId, key: CENTER_SETTING_KEYS.logoFile } },
+    select: { value: true },
+  });
+  return row?.value ?? '';
 }

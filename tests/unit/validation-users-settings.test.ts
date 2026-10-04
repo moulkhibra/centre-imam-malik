@@ -6,7 +6,12 @@ import {
   userFilterSchema,
   userUpdateSchema,
 } from '@/lib/validation/users';
-import { CENTER_SETTING_KEYS, centerSettingsSchema, centerSettingEntries } from '@/lib/validation/settings';
+import {
+  CENTER_FORM_SETTING_KEYS,
+  CENTER_SETTING_KEYS,
+  centerSettingsSchema,
+  centerSettingEntries,
+} from '@/lib/validation/settings';
 
 /**
  * Validation of the Phase 2B forms.
@@ -204,7 +209,10 @@ describe('centre settings schema', () => {
   it('writes every key it owns, so a missing default cannot be mistaken for a cleared value', () => {
     const input = centerSettingsSchema.parse(validSettings);
     const entries = centerSettingEntries(input);
-    expect(entries.map(([key]) => key).sort()).toEqual(Object.values(CENTER_SETTING_KEYS).sort());
+    expect(entries.map(([key]) => key).sort()).toEqual(Object.values(CENTER_FORM_SETTING_KEYS).sort());
+    // The stored logo name is written by the upload, never by this form: a text
+    // field for it would let the settings screen aim the setting at any file.
+    expect(entries.map(([key]) => key)).not.toContain(CENTER_SETTING_KEYS.logoFile);
     // An unset footer is stored as an empty value rather than deleted: `getSetting`
     // reads a missing key as its default, and the centre meant to clear it.
     expect(entries.find(([key]) => key === CENTER_SETTING_KEYS.receiptFooterFr)?.[1]).toBe('');

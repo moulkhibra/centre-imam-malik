@@ -152,6 +152,8 @@ export const DEFAULT_PAYMENT_METHODS: readonly {
 
 /** Settings key/value defaults (branding, receipts, certificates). */
 export const DEFAULT_CENTER_SETTINGS = {
+  /** Written only by the logo upload; '' means "no uploaded logo". */
+  'center.logoFile': '',
   'receipt.footerFr':
     'Merci pour votre confiance. Toute somme versée ne peut être remboursée que sur présentation du présent reçu.',
   'receipt.footerAr': 'شكرا على ثقتكم. لا يمكن استرجاع أي مبلغ بدون تقديم هذه الوصالة.',

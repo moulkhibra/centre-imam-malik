@@ -569,6 +569,15 @@ export const fr = {
     logoPath: 'Chemin du logo',
     logoPathHint:
       'Le fichier doit être déposé dans le dossier public/ de l\'application. Indiquez son chemin, par exemple /logo.png.',
+    logoUploadTitle: 'Logo du centre',
+    logoUploadHint:
+      'PNG, JPEG ou WEBP, 2 Mo maximum. Le fichier est reconnu à son contenu, pas à son extension. Utilisé dans la barre latérale, sur les reçus et sur les certificats.',
+    logoUpload: 'Téléverser ce logo',
+    logoUploadDone: 'Logo mis à jour',
+    logoRemove: 'Retirer le logo',
+    logoRemoveDone: 'Logo retiré',
+    logoCurrent: 'Logo actuel',
+    logoNone: 'Aucun logo : les initiales du centre sont affichées à la place.',
     timezone: 'Fuseau horaire',
     receiptFooterFr: 'Pied de reçu (français)',
     receiptFooterAr: 'Pied de reçu (arabe)',
@@ -686,6 +695,10 @@ export const fr = {
     teacherNotFound: 'Enseignant introuvable dans ce centre',
     teacherAlreadyLinked: 'Cet enseignant est déjà relié à un autre compte',
     centerNotFound: 'Centre introuvable',
+    logoMissing: 'Aucun fichier sélectionné',
+    logoTooLarge: 'Logo trop volumineux : 2 Mo maximum',
+    logoNotAnImage:
+      'Ce fichier n\'est pas une image PNG, JPEG ou WEBP. Un fichier dont l\'extension est .png mais dont le contenu ne l\'est pas est refusé.',
     notFoundPage: 'Page introuvable',
     notFoundPageBody: 'La page demandée n\'existe pas ou a été déplacée.',
     backToDashboard: 'Retour au tableau de bord',

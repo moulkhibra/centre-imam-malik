@@ -236,18 +236,18 @@ séparées par phase) :
 
 | Suite | Volume | Contenu |
 | --- | --- | --- |
-| Unitaires (Vitest) | 302 | formatage MAD, validation, permissions, navigation, dictionnaires, erreurs, listes, filtres de liste, schémas comptes et paramètres |
-| Intégration (Vitest) | 111 | schéma et seed sur migrations réelles, authentification, personnes, catalogue, comptes, paramètres |
-| Bout en bout (Playwright) | 66 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide, phase 2, phase 2B, barre d'outils de liste en arabe, bannières d'erreur en arabe |
+| Unitaires (Vitest) | 308 | formatage MAD, validation, permissions, navigation, dictionnaires, erreurs, listes, filtres de liste, schémas comptes et paramètres, empreintes d'image et noms de fichiers stockés |
+| Intégration (Vitest) | 122 | schéma et seed sur migrations réelles, authentification, personnes, catalogue, comptes, paramètres, téléversement et service du logo |
+| Bout en bout (Playwright) | 71 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide, phase 2, phase 2B, barre d'outils de liste en arabe, bannières d'erreur en arabe, téléversement du logo |
 
-Soit 413 tests Vitest et 66 tests Playwright, tous verts.
+Soit 430 tests Vitest et 71 tests Playwright, tous verts.
 
 `npm test` lance les deux projets Vitest d'un coup. Pour itérer sur un seul,
-`npm run test:unit` (302 tests, quelques secondes) ou
-`npm run test:integration` (111 tests, base réelle) : c'est la commande à
+`npm run test:unit` (308 tests, quelques secondes) ou
+`npm run test:integration` (122 tests, base réelle) : c'est la commande à
 utiliser quand une erreur vient d'un filtre de liste, d'un dictionnaire ou
 d'un message d'erreur, et qu'on veut savoir si le projet concerné est vert
-avant de lancer les 66 tests Playwright.
+avant de lancer les 71 tests Playwright.
 
 ---
 
@@ -393,27 +393,47 @@ ouvertes fermées, entrée `PASSWORD_RESET` au journal sans le secret — refuse
 compte qui n'est pas `ADMIN` et refuse de travailler sur une base hors du dossier
 `prisma/` du projet.
 
-### Écart connu avec la demande de phase : le logo
+### Le téléversement du logo
 
-La phase 2B demandait un **téléversement** de logo (type, taille, octets
-d'empreinte, stockage hors du web public, servi par une route autorisée). Ce qui
-est livré est un champ qui accepte un **chemin** sous `public/`, validé comme
-chemin (pas de traversée, extension d'image) et utilisé tel quel par la barre
-latérale et les pieds de page.
+La phase 2B demandait un téléversement de logo. Il est livré, et il a été construit
+pour que la phase 8 n'ait pas à le refaire autrement.
 
-Ce n'est pas un oubli : le téléversement de fichiers avec ses octets
-d'empreinte, son stockage hors du web public, sa route servie sous permission,
-ses noms de fichiers aléatoires et son test d'accès direct à un enregistrement
-appartient déjà à la phase 8, qui doit le faire **une seule fois** pour toutes les
-pièces jointes. Le faire ici pour le seul logo créerait un second chemin de
-stockage que la phase 8 devrait unifier ensuite.
+**Ce que fait l'écran.** `/settings` garde le champ historique *chemin du logo*
+(validé comme chemin sous `public/`) et ajoute une carte **Logo du centre** avec
+un vrai champ fichier. Le téléversé prime sur le chemin : `center.logoFile` gagne
+sur `center.logoPath`, et retirer le téléversé fait retomber la barre latérale sur
+le chemin historique.
 
-Tant que le téléversement n'existe pas, deux conséquences à connaître : le logo
-est servi ** publiquement** par `public/` (il apparaît sur les documents, il n'a
-rien de secret), et **aucune validation des octets de l'image n'est faite** —
-seule l'extension l'est. Un fichier qui n'est pas une vraie image sera refusé
-par le navigateur, pas par l'application. Les couleurs, elles, sont bien
-validées (format hexadécimal et contraste).
+**Où sont les octets.** Hors de `public/`, dans `UPLOADS_DIR` (défaut `uploads`,
+donc `uploads/center/`), ce qui veut dire qu'aucune URL statique ne les expose.
+L'installateur crée le dossier et `npm run backup` l'archive avec la base : un
+logo absent de l'archive est un logo perdu à la restauration.
+
+**Comment le fichier est jugé.** Les octets decide, jamais le nom ni le type
+déclaré : les trois formats acceptés sont reconnus par leur empreinte (`PNG`,
+`SOI` JPEG, `RIFF….WEBP`), 2 Mo maximum (`MAX_LOGO_BYTES`), pas de SVG. Un
+`.png` qui est en réalité une archive est refusé — le nom ne passe pas, et
+l'extension stockée suit le contenu reconnu, pas le nom donné.
+
+**Qui peut le lire.** `GET /api/center-logo` est la seule porte : session
+obligatoire (401 sinon), permission `settings.view`, et la ligne de paramètres est
+cherchée par `centerId` du lecteur, donc un centre ne lit jamais le logo d'un
+autre. La réponse est en `private, no-cache` : l'URL ne change pas quand le logo
+change, le navigateur doit redemander.
+
+**Deux limites à connaître.** Un logo téléversé n'apparaît pas sur l'écran de
+connexion : le nom de fichier est illisible sans session, la page de connexion
+continue donc d'utiliser le chemin historique et, à défaut, les initiales. Et le
+téléversement reste volontairement limité au logo ; la phase 8 étendra le même
+module aux pièces jointes des étudiants.
+
+Vérifié par l'exécution : 6 tests unitaires sur les empreintes et la garde de
+nom de fichier, 11 tests d'intégration sur l'écriture, le refus, le
+remplacement, la suppression, les permissions et la route, 5 tests de bout en bout
+sur le parcours complet en français et en arabe. Chacun a été rendu rouge en
+rétablissant le défaut qu'il couvre (type déclaré accepté, fichier supprimé,
+autorisation retirée, permission contournée sur l'écran).
+
 
 ---
 

@@ -104,6 +104,9 @@ export default defineConfig({
       HOSTNAME: '127.0.0.1',
       PORT: '3210',
       DEFAULT_LOCALE: 'fr',
+      // Uploads land in their own folder: an E2E run must not leave a logo in
+      // the developer's `uploads/`, and must not read one that is already there.
+      UPLOADS_DIR: '.e2e-uploads',
     },
   },
 });

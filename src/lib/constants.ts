@@ -358,6 +358,13 @@ export const ALLOWED_UPLOAD_MIME_TYPES = [
 
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
 
+/**
+ * The centre logo is drawn at 32 pixels in the sidebar and about two centimetres
+ * on a printed receipt, so two megabytes is already generous - and the whole file
+ * is read into memory to check its bytes on every upload.
+ */
+export const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+
 // --- Notifications ----------------------------------------------------------
 
 export const NOTIFICATION_TYPES = [

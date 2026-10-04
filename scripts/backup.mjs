@@ -55,6 +55,16 @@ function readEnv() {
   return out;
 }
 
+/**
+ * The uploads folder, resolved exactly as `src/lib/storage/uploads.ts` does it.
+ * A logo that is not in the archive is a logo a restore silently loses, so the
+ * two resolutions have to stay in step.
+ */
+function uploadsRoot() {
+  const configured = readEnv().UPLOADS_DIR;
+  return path.resolve(ROOT, configured && configured.trim() ? configured.trim() : 'uploads');
+}
+
 function databaseFile() {
   const url = readEnv().DATABASE_URL || 'file:./prisma/data/centre.db';
   const raw = url.replace(/^file:/, '');
@@ -105,13 +115,13 @@ async function create() {
   ok(`base : ${path.relative(ROOT, dbFile)} (${formatSize(fs.statSync(stagedDb).size)})`);
 
   const included = [path.relative(ROOT, dbFile)];
-  for (const dir of ['public/uploads', 'prisma/migrations']) {
-    const full = path.join(ROOT, dir);
+  for (const dir of [uploadsRoot(), 'prisma/migrations']) {
+    const full = dir;
     if (fs.existsSync(full) && fs.readdirSync(full).length > 0) {
-      const target = path.join(stage, dir);
+      const target = path.join(stage, path.relative(ROOT, full));
       fs.cpSync(full, target, { recursive: true });
-      included.push(dir);
-      ok(`dossier : ${dir}`);
+      included.push(path.relative(ROOT, full));
+      ok(`dossier : ${path.relative(ROOT, full)}`);
     }
   }
 

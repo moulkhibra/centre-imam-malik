@@ -73,7 +73,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         center?.nameFr ||
         'Centre Imam Malik'
       }
-      centerLogoUrl={center?.logoPath ?? null}
+      centerLogoUrl={center?.logoUrl ?? null}
       unreadNotifications={unreadNotifications}
       notificationsReady={isRouteAvailable('/notifications')}
       logoutAction={logoutAction}

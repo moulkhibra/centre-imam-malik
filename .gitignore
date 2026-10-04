@@ -22,6 +22,8 @@ prisma/*.db-shm
 prisma/data/
 backups/
 storage/
+uploads/
+.e2e-uploads/
 public/uploads/*
 !public/uploads/.gitkeep
 

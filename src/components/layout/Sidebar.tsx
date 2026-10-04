@@ -74,6 +74,7 @@ export function Sidebar({
           ) : (
             <div
               aria-hidden="true"
+              data-testid="sidebar-initials"
               className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold text-white"
             >
               {initials}

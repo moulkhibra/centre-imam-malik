@@ -3,6 +3,7 @@ import { cache } from 'react';
 import { prisma } from '@/lib/db/client';
 import { DEFAULT_LOCALE, type Locale } from '@/lib/constants';
 import { DEFAULT_CENTER_SETTINGS } from '@/lib/settings/defaults';
+import { CENTER_LOGO_ROUTE } from '@/lib/storage/uploads';
 import {
   DEFAULT_EXPENSE_CATEGORIES,
   DEFAULT_LEVELS,
@@ -26,6 +27,14 @@ export type CenterSettings = {
   email: string | null;
   website: string | null;
   logoPath: string | null;
+  /** Stored name of the uploaded logo, or '' when none was uploaded. */
+  logoFile: string;
+  /**
+   * What the shell must render. An uploaded logo wins over the legacy
+   * `Center.logoPath` column: it is the one the administrator can set from the
+   * application, and the column predates the upload.
+   */
+  logoUrl: string | null;
   primaryColor: string;
   secondaryColor: string;
   currency: string;
@@ -44,14 +53,31 @@ export type CenterSettings = {
 /** Centre is the active one; multi-centre IDs are stored on every record. */
 export const ACTIVE_CENTER_CODE = 'CIM';
 
+/** The current academic year is read with the centre: every screen needs both. */
+const WITH_CURRENT_YEAR = { academicYears: { where: { isCurrent: true }, take: 1 } } as const;
+
 export const getActiveCenter = cache(async (): Promise<CenterSettings | null> => {
   const center = await prisma.center.findFirst({
     where: { active: true },
     orderBy: { createdAt: 'asc' },
-    include: { academicYears: { where: { isCurrent: true }, take: 1 } },
+    include: WITH_CURRENT_YEAR,
   });
   if (!center) return null;
   return hydrate(center, await getSettingsMap(center.id));
+});
+
+/**
+ * One centre by id, for a screen that edits the centre its reader belongs to.
+ *
+ * Deliberately not `getActiveCenter`: see `getCenterSettingsFormValues` for the
+ * same reasoning - a settings screen must never read whichever centre happens to
+ * be flagged active, or a second installation would show - and then overwrite -
+ * another row.
+ */
+export const getCenterSettings = cache(async (centerId: string): Promise<CenterSettings | null> => {
+  const center = await prisma.center.findUnique({ where: { id: centerId }, include: WITH_CURRENT_YEAR });
+  if (!center) return null;
+  return hydrate(center, await getSettingsMap(centerId));
 });
 
 type CenterRow = {
@@ -92,6 +118,8 @@ function hydrate(
     email: center.email,
     website: center.website,
     logoPath: center.logoPath,
+    logoFile: settings.get('center.logoFile') ?? '',
+    logoUrl: (settings.get('center.logoFile') ? CENTER_LOGO_ROUTE : center.logoPath) || null,
     primaryColor: center.primaryColor,
     secondaryColor: center.secondaryColor,
     currency: center.currency,

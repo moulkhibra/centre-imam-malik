@@ -80,6 +80,15 @@ function parseEnv(text) {
   return out;
 }
 
+/**
+ * The uploads folder, resolved as `src/lib/storage/uploads.ts` resolves it, so
+ * setup creates the directory the running application will actually write to.
+ */
+function uploadsRoot() {
+  const configured = parseEnv(fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '').UPLOADS_DIR;
+  return path.resolve(ROOT, configured && configured.trim() ? configured.trim() : 'uploads');
+}
+
 function writeEnv(values) {
   const header = [
     '# ---------------------------------------------------------------------------',
@@ -162,7 +171,8 @@ function ensureEnv(answers) {
   }
 
   fs.mkdirSync(path.join(ROOT, 'prisma', 'data'), { recursive: true });
-  fs.mkdirSync(path.join(ROOT, 'public', 'uploads'), { recursive: true });
+  // Uploaded files live outside public/: see UPLOADS_DIR in .env.example.
+  fs.mkdirSync(uploadsRoot(), { recursive: true });
   fs.mkdirSync(path.join(ROOT, 'backups'), { recursive: true });
 }
 

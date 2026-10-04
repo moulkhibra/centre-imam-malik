@@ -159,6 +159,8 @@ export type CenterSettingsInput = z.infer<typeof centerSettingsSchema>;
  */
 export const CENTER_SETTING_KEYS = {
   locale: 'center.locale',
+  /** Owned by the upload action, never by the settings form. */
+  logoFile: 'center.logoFile',
   shortNameFr: 'center.shortNameFr',
   shortNameAr: 'center.shortNameAr',
   receiptFooterFr: 'receipt.footerFr',
@@ -167,6 +169,26 @@ export const CENTER_SETTING_KEYS = {
   certificateFooterAr: 'certificate.footerAr',
   directorNameFr: 'certificate.directorNameFr',
   directorNameAr: 'certificate.directorNameAr',
+} as const;
+
+/**
+ * The keys the settings *form* owns, which is every key except `center.logoFile`.
+ *
+ * The upload writes that one from the bytes it saved, under a name it generated.
+ * It is deliberately outside the schema: a text field for it would let whoever
+ * fills in the settings screen point the setting at any name at all, and the
+ * upload route trusts the setting because only the upload can write it.
+ */
+export const CENTER_FORM_SETTING_KEYS = {
+  locale: CENTER_SETTING_KEYS.locale,
+  shortNameFr: CENTER_SETTING_KEYS.shortNameFr,
+  shortNameAr: CENTER_SETTING_KEYS.shortNameAr,
+  receiptFooterFr: CENTER_SETTING_KEYS.receiptFooterFr,
+  receiptFooterAr: CENTER_SETTING_KEYS.receiptFooterAr,
+  certificateFooterFr: CENTER_SETTING_KEYS.certificateFooterFr,
+  certificateFooterAr: CENTER_SETTING_KEYS.certificateFooterAr,
+  directorNameFr: CENTER_SETTING_KEYS.directorNameFr,
+  directorNameAr: CENTER_SETTING_KEYS.directorNameAr,
 } as const;
 
 /**

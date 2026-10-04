@@ -607,6 +607,107 @@ test.describe('centre settings (/settings)', () => {
  * the forbidden state instead of rendering an empty table. The navigation hides
  * the links, but the URL is what anyone can type.
  */
+/**
+ * The logo upload, through the real file input.
+ *
+ * `setInputFiles` hands the browser a real file, so what reaches the server is
+ * what a secretary's file picker would produce - bytes, a name and a content
+ * type that any of them could lie about.
+ */
+test.describe('centre logo upload', () => {
+  /** A 1x1 PNG, the smallest file a browser will draw. */
+  const PNG = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  );
+  /** `PK\x03\x04`: a real archive header, wearing a .png name. */
+  const ZIP = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00, 0x08, 0x00]);
+
+  test.beforeEach(async ({ page }) => {
+    await signInAsAdmin(page);
+    await page.goto('/settings');
+  });
+
+  test('uploads an image, shows it everywhere, and serves it only to a session', async ({ page }) => {
+    await page.locator('#center-logo-file').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: PNG });
+    await page.getByRole('button', { name: /téléverser ce logo/i }).click();
+    await expect(page.getByText(/logo mis à jour/i)).toBeVisible();
+
+    // The shell reads it: the sidebar shows the image instead of the initials.
+    await page.goto('/dashboard');
+    const logo = page.locator('aside img');
+    await expect(logo).toHaveAttribute('src', '/api/center-logo');
+    await expect(page.getByTestId('sidebar-initials')).toHaveCount(0);
+
+    // And the route answers an authenticated reader with the real bytes, from
+    // outside the public folder - the request is what a <img> tag makes.
+    const response = await page.request.get('/api/center-logo');
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toBe('image/png');
+    expect(Buffer.from(await response.body()).equals(PNG)).toBe(true);
+
+    // Without a session the same URL is shut: no cookie, no logo.
+    const context = page.context();
+    await context.clearCookies();
+    const anonymous = await context.request.get('/api/center-logo');
+    expect(anonymous.status()).toBe(401);
+  });
+
+  test('refuses a file that only claims to be an image, and keeps the logo', async ({ page }) => {
+    await page.locator('#center-logo-file').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: PNG });
+    await page.getByRole('button', { name: /téléverser ce logo/i }).click();
+    await expect(page.getByText(/logo mis à jour/i)).toBeVisible();
+
+    await page.locator('#center-logo-file').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: ZIP });
+    await page.getByRole('button', { name: /téléverser ce logo/i }).click();
+
+    // The refusal says what was wrong, in the reader's language.
+    await expect(page.getByText(/Ce fichier n'est pas une image PNG, JPEG ou WEBP/i)).toBeVisible();
+    // The logo already stored is untouched: a refused upload changes nothing.
+    await page.goto('/dashboard');
+    await expect(page.locator('aside img')).toHaveAttribute('src', '/api/center-logo');
+  });
+
+  test('removes the logo and falls back to the initials', async ({ page }) => {
+    await page.locator('#center-logo-file').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: PNG });
+    await page.getByRole('button', { name: /téléverser ce logo/i }).click();
+    await expect(page.getByText(/logo mis à jour/i)).toBeVisible();
+
+    await page.getByRole('button', { name: /retirer le logo/i }).click();
+    await expect(page.getByText(/logo retiré/i)).toBeVisible();
+
+    await page.goto('/dashboard');
+    await expect(page.locator('aside img')).toHaveCount(0);
+    await expect(page.getByTestId('sidebar-initials')).toBeVisible();
+    expect((await page.request.get('/api/center-logo')).status()).toBe(404);
+  });
+
+  test('refuses the whole card to a role without settings.manage', async ({ page }) => {
+    await signIn(page, E2E_PHASE2B_DIRECTEUR.email, E2E_PHASE2B_DIRECTEUR.password);
+    await page.goto('/settings');
+
+    // Read-only means read-only: no file input, no remove button.
+    await expect(page.locator('#center-logo-file')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /retirer le logo/i })).toHaveCount(0);
+  });
+
+  test('answers in Arabic, never in French', async ({ page }) => {
+    await page.context().addCookies([{ name: 'cim_locale', value: 'ar', url: E2E_BASE_URL }]);
+    await page.goto('/settings');
+
+    await page.locator('#center-logo-file').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: PNG });
+    await page.getByRole('button', { name: /رفع هذا الشعار/ }).click();
+    await expect(page.getByText('تم تحديث الشعار')).toBeVisible();
+
+    // Then the refusal, in Arabic, with no Latin left anywhere in the banner.
+    await page.locator('#center-logo-file').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: ZIP });
+    await page.getByRole('button', { name: /رفع هذا الشعار/ }).click();
+    // The format names stay latin (PNG, JPEG, WEBP): they are format names,
+    // not sentences. What has to be Arabic is the sentence around them.
+    await expect(page.getByText(/هذا الملف ليس صورة PNG أو JPEG أو WEBP/)).toBeVisible();
+  });
+});
+
 test.describe('accounts without the permission', () => {
   test('a secretary is refused on both routes', async ({ page }) => {
     await signIn(page, E2E_STAFF.email, E2E_STAFF.password);

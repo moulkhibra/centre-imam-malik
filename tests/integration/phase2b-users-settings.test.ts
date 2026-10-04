@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFile, readdir, rm, stat } from 'node:fs/promises';
+import path from 'node:path';
 
 vi.mock('next/headers', async () => {
   const { createNextHeadersMock } = await import('../helpers/cookie-jar');
@@ -19,12 +21,19 @@ const {
   setUserActiveAction,
   resetUserPasswordAction,
 } = await import('@/actions/users');
-const { updateCenterSettingsAction } = await import('@/actions/settings');
-const { getCenterSettingsFormValues, getActiveCenter } = await import('@/lib/settings/center');
-const { createSession } = await import('@/lib/auth/session');
+const {
+  updateCenterSettingsAction,
+  uploadCenterLogoAction,
+  removeCenterLogoAction,
+} = await import('@/actions/settings');
+const { getCenterSettingsFormValues, getActiveCenter, getCenterSettings } = await import('@/lib/settings/center');
+const { CENTER_LOGO_ROUTE } = await import('@/lib/storage/uploads');
+const { GET: serveCenterLogo } = await import('@/app/api/center-logo/route');
+const { createSession, destroySession } = await import('@/lib/auth/session');
 const { verifyPassword } = await import('@/lib/auth/password');
 const { truncateAllTables } = await import('../helpers/test-db');
 const { createCenter, createUser } = await import('../helpers/factories');
+const { MAX_LOGO_BYTES } = await import('@/lib/constants');
 
 /**
  * Phase 2B: accounts and centre settings against the real schema.
@@ -649,5 +658,222 @@ describe('centre settings', () => {
     // A column that is set is passed through untouched, Arabic included.
     expect(values?.nameAr).toBe('مركز تجريبي');
     expect(await getCenterSettingsFormValues('centre-inexistant')).toBeNull();
+  });
+});
+
+/**
+ * The logo upload: bytes in, a file outside `public/` out.
+ *
+ * Real files on disk and a real HTTP handler, because the questions are all
+ * filesystem questions - is the file where the backup will find it, is the old
+ * one gone, and can a request reach it without a session.
+ */
+describe('centre logo upload', () => {
+  let center: { id: string };
+  let admin: { id: string };
+  const PNG_BYTES = Uint8Array.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+  ]);
+  /** A zip header: what a .docx is, and what a .png is not. */
+  const ZIP_BYTES = Uint8Array.from([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00, 0x08, 0x00]);
+
+  const uploadRoot = path.resolve(process.cwd(), process.env.UPLOADS_DIR || 'uploads');
+  const logoDir = path.join(uploadRoot, 'center');
+
+  beforeEach(async () => {
+    await truncateAllTables(prisma);
+    await rm(logoDir, { recursive: true, force: true });
+    center = await createCenter({ code: 'CIM' });
+    admin = await createUser(center.id, { role: 'ADMIN' });
+  });
+
+  async function signIn(userId: string) {
+    await createSession(userId);
+  }
+
+  function uploadForm(bytes: Uint8Array, name = 'logo.png', type = 'image/png'): FormData {
+    const data = new FormData();
+    // A copy into a plain ArrayBuffer: `File` will not take a view over a
+    // SharedArrayBuffer, and the tests only ever hand it fresh bytes.
+    const file = new File([new Uint8Array(bytes).buffer], name, { type });
+    data.append('logo', file);
+    return data;
+  }
+
+  it('stores the bytes outside public/ under a random name, and audits it', async () => {
+    await signIn(admin.id);
+    const result = await uploadCenterLogoAction(uploadForm(PNG_BYTES, 'mon-logo.png'));
+
+    expect(result.ok).toBe(true);
+    const stored = (await prisma.centerSetting.findUniqueOrThrow({
+      where: { centerId_key: { centerId: center.id, key: 'center.logoFile' } },
+    })).value;
+
+    // Nothing the operator chose survives into the filesystem.
+    expect(stored).toMatch(/^[0-9a-f-]{36}\.png$/);
+    expect(stored).not.toContain('mon-logo');
+
+    // Written where the application looks, and nowhere under public/.
+    const written = await readFile(path.join(logoDir, stored));
+    expect(Buffer.from(written).equals(Buffer.from(PNG_BYTES))).toBe(true);
+    await expect(stat(path.join(process.cwd(), 'public', stored))).rejects.toThrow();
+
+    // The shell is handed the authorised route, not the raw path.
+    const shell = await getCenterSettings(center.id);
+    expect(shell?.logoFile).toBe(stored);
+    expect(shell?.logoUrl).toBe(CENTER_LOGO_ROUTE);
+
+    const entry = await prisma.auditLog.findFirstOrThrow({
+      where: { entityType: 'Center', entityId: center.id, action: 'SETTINGS_CHANGE' },
+    });
+    // The file names are audited; the bytes never are.
+    expect(entry.metadata).toContain(stored);
+  });
+
+  it('survives a later save of the settings form', async () => {
+    await signIn(admin.id);
+    expect((await uploadCenterLogoAction(uploadForm(PNG_BYTES))).ok).toBe(true);
+
+    // Uploading and editing are two visits to the same screen. A secretary who
+    // uploads then fixes a footer must not lose the logo, so the settings write
+    // must leave `center.logoFile` alone.
+    expect((await updateCenterSettingsAction(form(SETTINGS_FORM))).ok).toBe(true);
+
+    const shell = await getCenterSettings(center.id);
+    expect(shell?.logoFile).toMatch(/^[0-9a-f-]{36}\.png$/);
+    expect((await serveCenterLogo()).status).toBe(200);
+  });
+
+  it('refuses a file that only claims to be an image', async () => {
+    await signIn(admin.id);
+    const result = await uploadCenterLogoAction(uploadForm(ZIP_BYTES, 'logo.png', 'image/png'));
+
+    expect(result).toMatchObject({ ok: false, errorKey: 'errors.logoNotAnImage' });
+    // Nothing written, nothing pointed at.
+    expect(await readdir(logoDir).catch(() => [])).toEqual([]);
+    expect(
+      await prisma.centerSetting.findUnique({
+        where: { centerId_key: { centerId: center.id, key: 'center.logoFile' } },
+      }),
+    ).toBeNull();
+  });
+
+  it('refuses a file above the size limit and refuses an empty one', async () => {
+    await signIn(admin.id);
+    const tooBig = new Uint8Array(MAX_LOGO_BYTES + 1);
+    // Keep the signature so size is the only thing wrong with it.
+    tooBig.set(PNG_BYTES.slice(0, 8));
+
+    expect(await uploadCenterLogoAction(uploadForm(tooBig))).toMatchObject({
+      ok: false,
+      errorKey: 'errors.logoTooLarge',
+    });
+    expect(await uploadCenterLogoAction(uploadForm(new Uint8Array(0)))).toMatchObject({
+      ok: false,
+      errorKey: 'errors.logoMissing',
+    });
+    expect(await readdir(logoDir).catch(() => [])).toEqual([]);
+  });
+
+  it('replaces the previous logo and deletes the file it replaced', async () => {
+    await signIn(admin.id);
+    const first = await uploadCenterLogoAction(uploadForm(PNG_BYTES));
+    expect(first.ok).toBe(true);
+    const firstName = (await prisma.centerSetting.findUniqueOrThrow({
+      where: { centerId_key: { centerId: center.id, key: 'center.logoFile' } },
+    })).value;
+
+    const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+    const second = await uploadCenterLogoAction(uploadForm(jpeg, 'autre.jpg', 'image/jpeg'));
+    expect(second.ok).toBe(true);
+
+    const secondName = (await prisma.centerSetting.findUniqueOrThrow({
+      where: { centerId_key: { centerId: center.id, key: 'center.logoFile' } },
+    })).value;
+    expect(secondName).not.toBe(firstName);
+    // The extension follows the content, not the name the operator gave.
+    expect(secondName.endsWith('.jpg')).toBe(true);
+
+    // The replaced file is gone: uploads must not grow a file per save.
+    expect(await readdir(logoDir)).toEqual([secondName]);
+  });
+
+  it('clears the setting and the file on removal, and falls back to the legacy path', async () => {
+    await signIn(admin.id);
+    await uploadCenterLogoAction(uploadForm(PNG_BYTES));
+
+    const result = await removeCenterLogoAction();
+    expect(result.ok).toBe(true);
+    expect(await readdir(logoDir)).toEqual([]);
+
+    const shell = await getCenterSettings(center.id);
+    expect(shell?.logoFile).toBe('');
+    expect(shell?.logoUrl).toBe(null);
+
+    // Removing twice is not an error: the button may be pressed twice.
+    expect((await removeCenterLogoAction()).ok).toBe(true);
+  });
+
+  it('refuses the upload to anyone without settings.manage', async () => {
+    const secretary = await createUser(center.id, { role: 'SECRETARY' });
+    const directeur = await createUser(center.id, { role: 'DIRECTEUR' });
+
+    for (const user of [secretary, directeur]) {
+      await signIn(user.id);
+      expect(await uploadCenterLogoAction(uploadForm(PNG_BYTES))).toMatchObject({
+        ok: false,
+        code: 'FORBIDDEN',
+      });
+      expect((await removeCenterLogoAction()).ok).toBe(false);
+    }
+    expect(await readdir(logoDir).catch(() => [])).toEqual([]);
+  });
+
+  it('refuses the upload when nobody is signed in', async () => {
+    expect(await uploadCenterLogoAction(uploadForm(PNG_BYTES))).toMatchObject({
+      ok: false,
+      code: 'UNAUTHENTICATED',
+    });
+    expect(await readdir(logoDir).catch(() => [])).toEqual([]);
+  });
+
+  it('serves the file to a signed-in reader and to nobody else', async () => {
+    // No session: the door is shut.
+    const anonymous = await serveCenterLogo();
+    expect(anonymous.status).toBe(401);
+
+    await signIn(admin.id);
+    await uploadCenterLogoAction(uploadForm(PNG_BYTES));
+
+    const response = await serveCenterLogo();
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('image/png');
+    // The bytes are the ones that were uploaded, not a redirect or a placeholder.
+    const body = Buffer.from(await response.arrayBuffer());
+    expect(body.equals(Buffer.from(PNG_BYTES))).toBe(true);
+
+    // No session, no logo - the status must not depend on whether one exists.
+    await destroySession();
+    expect((await serveCenterLogo()).status).toBe(401);
+  });
+
+  it('does not leak another centre\'s logo', async () => {
+    const other = await createCenter({ code: 'AUTRE' });
+    const otherAdmin = await createUser(other.id, { role: 'ADMIN' });
+    await signIn(otherAdmin.id);
+    expect((await uploadCenterLogoAction(uploadForm(PNG_BYTES))).ok).toBe(true);
+
+    // The first centre has no logo; the second centre's admin must not get it.
+    await signIn(admin.id);
+    expect((await serveCenterLogo()).status).toBe(404);
+  });
+
+  it('answers 404 when the setting points at a file someone deleted', async () => {
+    await signIn(admin.id);
+    await uploadCenterLogoAction(uploadForm(PNG_BYTES));
+    await rm(logoDir, { recursive: true, force: true });
+
+    // A missing file is a missing logo, not a 500 on every page of the shell.
+    expect((await serveCenterLogo()).status).toBe(404);
   });
 });

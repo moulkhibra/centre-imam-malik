@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
   E2E_ADMIN,
@@ -37,6 +38,10 @@ export async function prepareE2eDatabase(): Promise<void> {
     fs.rmSync(`${E2E_DB_PATH}${suffix}`, { force: true });
   }
   fs.mkdirSync(E2E_DB_PATH.replace(/e2e\.db$/, ''), { recursive: true });
+  // Uploads too: `UPLOADS_DIR` points the server at `.e2e-uploads`, so a run
+  // starts from an empty folder and leaves nothing behind in `uploads/`.
+  fs.rmSync(path.join(process.cwd(), '.e2e-uploads'), { recursive: true, force: true });
+  fs.mkdirSync(path.join(process.cwd(), '.e2e-uploads', 'center'), { recursive: true });
 
   const env = { DATABASE_URL: `file:${E2E_DB_PATH}` };
 
