@@ -67,6 +67,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       locale={locale}
       permissions={user.permissions}
       centerName={(locale === 'ar' ? center?.nameAr : center?.nameFr) ?? center?.nameFr ?? 'Centre Imam Malik'}
+      centerShortName={
+        (locale === 'ar' ? center?.shortNameAr : center?.shortNameFr) ||
+        (locale === 'ar' ? center?.nameAr : center?.nameFr) ||
+        center?.nameFr ||
+        'Centre Imam Malik'
+      }
+      centerLogoUrl={center?.logoPath ?? null}
       unreadNotifications={unreadNotifications}
       notificationsReady={isRouteAvailable('/notifications')}
       logoutAction={logoutAction}

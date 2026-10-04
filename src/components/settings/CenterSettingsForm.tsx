@@ -173,6 +173,12 @@ export function CenterSettingsForm({
             <Field label={labels.fields.nameAr} htmlFor="center-nameAr" error={fieldErrors.nameAr?.[0]}>
               <Input id="center-nameAr" name="nameAr" defaultValue={shown('nameAr')} dir="rtl" lang="ar" maxLength={120} disabled={disabled} invalid={invalid('nameAr')} />
             </Field>
+            <Field label={labels.fields.shortNameFr} htmlFor="center-shortNameFr" error={fieldErrors.shortNameFr?.[0]}>
+              <Input id="center-shortNameFr" name="shortNameFr" defaultValue={shown('shortNameFr')} dir="ltr" maxLength={60} disabled={disabled} invalid={invalid('shortNameFr')} />
+            </Field>
+            <Field label={labels.fields.shortNameAr} htmlFor="center-shortNameAr" error={fieldErrors.shortNameAr?.[0]}>
+              <Input id="center-shortNameAr" name="shortNameAr" defaultValue={shown('shortNameAr')} dir="rtl" lang="ar" maxLength={60} disabled={disabled} invalid={invalid('shortNameAr')} />
+            </Field>
             <Field label={labels.fields.legalName} htmlFor="center-legalName" error={fieldErrors.legalName?.[0]}>
               <Input id="center-legalName" name="legalName" defaultValue={shown('legalName')} dir="ltr" maxLength={120} disabled={disabled} invalid={invalid('legalName')} />
             </Field>

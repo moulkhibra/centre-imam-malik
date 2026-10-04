@@ -60,6 +60,8 @@ export default async function SettingsPage() {
       code: t('settings.code'),
       nameFr: t('settings.nameFr'),
       nameAr: t('settings.nameAr'),
+      shortNameFr: t('settings.shortNameFr'),
+      shortNameAr: t('settings.shortNameAr'),
       legalName: t('settings.legalName'),
       address: t('settings.address'),
       city: t('settings.city'),

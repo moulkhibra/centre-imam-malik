@@ -40,6 +40,15 @@ const requiredNameSchema = z
 
 const optionalNameSchema = optionalTrimmedTextSchema(120);
 
+/**
+ * The sidebar name is drawn on one truncated line, so its cap is the length of
+ * that line rather than the length of a legal name. The input carries the same
+ * `maxLength`: a cap the server does not share would be a limit the operator
+ * could walk straight past with a crafted POST.
+ */
+const SHORT_NAME_MAX = 60;
+const optionalShortNameSchema = optionalTrimmedTextSchema(SHORT_NAME_MAX);
+
 const optionalTextSchema = (max: number) => optionalTrimmedTextSchema(max);
 
 /**
@@ -112,6 +121,9 @@ export const centerSettingsSchema = trimmed(
     code: centerCodeSchema,
     nameFr: requiredNameSchema,
     nameAr: optionalNameSchema,
+    /** Short name for the sidebar; falls back to `nameFr` when empty. */
+    shortNameFr: optionalShortNameSchema,
+    shortNameAr: optionalShortNameSchema,
     legalName: optionalNameSchema,
     address: optionalTextSchema(200),
     city: optionalTextSchema(80),
@@ -147,6 +159,8 @@ export type CenterSettingsInput = z.infer<typeof centerSettingsSchema>;
  */
 export const CENTER_SETTING_KEYS = {
   locale: 'center.locale',
+  shortNameFr: 'center.shortNameFr',
+  shortNameAr: 'center.shortNameAr',
   receiptFooterFr: 'receipt.footerFr',
   receiptFooterAr: 'receipt.footerAr',
   certificateFooterFr: 'certificate.footerFr',
@@ -166,6 +180,8 @@ export const CENTER_SETTING_KEYS = {
 export function centerSettingEntries(input: CenterSettingsInput): Array<[string, string]> {
   return [
     [CENTER_SETTING_KEYS.locale, input.locale],
+    [CENTER_SETTING_KEYS.shortNameFr, input.shortNameFr ?? ''],
+    [CENTER_SETTING_KEYS.shortNameAr, input.shortNameAr ?? ''],
     [CENTER_SETTING_KEYS.receiptFooterFr, input.receiptFooterFr ?? ''],
     [CENTER_SETTING_KEYS.receiptFooterAr, input.receiptFooterAr ?? ''],
     [CENTER_SETTING_KEYS.certificateFooterFr, input.certificateFooterFr ?? ''],

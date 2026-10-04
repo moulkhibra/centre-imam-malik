@@ -17,6 +17,8 @@ export type CenterSettings = {
   code: string;
   nameFr: string;
   nameAr: string | null;
+  shortNameFr: string;
+  shortNameAr: string;
   address: string | null;
   city: string | null;
   phone: string | null;
@@ -81,6 +83,8 @@ function hydrate(
     code: center.code,
     nameFr: center.nameFr,
     nameAr: center.nameAr,
+    shortNameFr: settings.get('center.shortNameFr') ?? '',
+    shortNameAr: settings.get('center.shortNameAr') ?? '',
     address: center.address,
     city: center.city,
     phone: center.phone,
@@ -121,6 +125,8 @@ export type CenterSettingsFormValues = {
   code: string;
   nameFr: string;
   nameAr: string;
+  shortNameFr: string;
+  shortNameAr: string;
   legalName: string;
   address: string;
   city: string;
@@ -179,6 +185,8 @@ export const getCenterSettingsFormValues = cache(
       code: center.code,
       nameFr: center.nameFr,
       nameAr: center.nameAr ?? '',
+      shortNameFr: value('center.shortNameFr'),
+      shortNameAr: value('center.shortNameAr'),
       legalName: center.legalName ?? '',
       address: center.address ?? '',
       city: center.city ?? '',

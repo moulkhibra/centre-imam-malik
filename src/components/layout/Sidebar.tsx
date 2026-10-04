@@ -15,18 +15,30 @@ export function Sidebar({
   open,
   onClose,
   centerName,
+  centerLogoUrl,
   shellLabels,
 }: {
   labels: SidebarLabels;
   permissions: readonly Permission[];
   open: boolean;
   onClose: () => void;
+  /** Short name, already resolved by the layout. */
   centerName: string;
+  centerLogoUrl: string | null;
   /** UI chrome strings that must follow the interface language. */
   shellLabels: SidebarLabels;
 }) {
   const pathname = usePathname();
   const allowed = new Set<string>(permissions);
+
+  // Initials of the centre name, so the badge follows what the centre typed
+  // instead of two hardcoded letters that only suited the seed name.
+  const initials = centerName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toUpperCase())
+    .join('');
 
   return (
     <>
@@ -54,9 +66,19 @@ export function Sidebar({
         aria-label={shellLabels.mainNavigation ?? 'Navigation principale'}
       >
         <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-ink-200 px-4">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold text-white">
-            IM
-          </div>
+          {centerLogoUrl ? (
+            // `alt=""`: the centre name sits right next to it, so announcing the
+            // image too would read the name twice.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={centerLogoUrl} alt="" className="size-8 shrink-0 rounded-lg object-contain" />
+          ) : (
+            <div
+              aria-hidden="true"
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold text-white"
+            >
+              {initials}
+            </div>
+          )}
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-ink-900" title={centerName}>
               {centerName}

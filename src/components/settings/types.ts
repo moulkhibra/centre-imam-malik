@@ -40,6 +40,8 @@ export type SettingsViewLabels = {
     code: string;
     nameFr: string;
     nameAr: string;
+    shortNameFr: string;
+    shortNameAr: string;
     legalName: string;
     address: string;
     city: string;

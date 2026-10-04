@@ -536,6 +536,8 @@ export const fr = {
     centerInfo: 'Informations du centre',
     nameFr: 'Nom du centre (français)',
     nameAr: 'Nom du centre (arabe)',
+    shortNameFr: 'Nom court (barre latérale)',
+    shortNameAr: 'Nom court (arabe)',
     logo: 'Logo',
     primaryColor: 'Couleur principale',
     secondaryColor: 'Couleur secondaire',

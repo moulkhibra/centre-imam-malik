@@ -20,7 +20,7 @@ const {
   resetUserPasswordAction,
 } = await import('@/actions/users');
 const { updateCenterSettingsAction } = await import('@/actions/settings');
-const { getCenterSettingsFormValues } = await import('@/lib/settings/center');
+const { getCenterSettingsFormValues, getActiveCenter } = await import('@/lib/settings/center');
 const { createSession } = await import('@/lib/auth/session');
 const { verifyPassword } = await import('@/lib/auth/password');
 const { truncateAllTables } = await import('../helpers/test-db');
@@ -536,6 +536,30 @@ describe('centre settings', () => {
     expect(entry.action).toBe('SETTINGS_CHANGE');
     // The diff names what changed, so an auditor does not have to diff two rows.
     expect(entry.metadata).toContain('city');
+  });
+
+  it('round-trips the sidebar short name and hands it to the shell', async () => {
+    await signIn(admin.id);
+    const result = await updateCenterSettingsAction(
+      form({ ...SETTINGS_FORM, shortNameFr: 'CIM', shortNameAr: 'مركز م' }),
+    );
+
+    expect(result.ok).toBe(true);
+    // The short name lives in CenterSetting, not on the centre row: it is an
+    // optional display preference, not part of the centre's identity.
+    const settings = await prisma.centerSetting.findMany({ where: { centerId: center.id } });
+    const byKey = new Map(settings.map((row) => [row.key, row.value]));
+    expect(byKey.get('center.shortNameFr')).toBe('CIM');
+    expect(byKey.get('center.shortNameAr')).toBe('مركز م');
+
+    // Both readers the shell uses see it: the form, and the centre record that
+    // the layout renders the sidebar from.
+    const values = await getCenterSettingsFormValues(center.id);
+    expect(values?.shortNameFr).toBe('CIM');
+    expect(values?.shortNameAr).toBe('مركز م');
+    const hydrated = await getActiveCenter();
+    expect(hydrated?.shortNameFr).toBe('CIM');
+    expect(hydrated?.shortNameAr).toBe('مركز م');
   });
 
   it('writes the centre of the signed-in administrator, never the active one', async () => {

@@ -534,6 +534,8 @@ export const ar = {
     centerInfo: 'معلومات المركز',
     nameFr: 'اسم المركز (بالفرنسية)',
     nameAr: 'اسم المركز (بالعربية)',
+    shortNameFr: 'الاسم المختصر (بالفرنسية)',
+    shortNameAr: 'الاسم المختصر (بالعربية)',
     logo: 'الشعار',
     primaryColor: 'اللون الأساسي',
     secondaryColor: 'اللون الثانوي',

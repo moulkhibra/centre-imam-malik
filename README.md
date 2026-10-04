@@ -236,18 +236,18 @@ séparées par phase) :
 
 | Suite | Volume | Contenu |
 | --- | --- | --- |
-| Unitaires (Vitest) | 301 | formatage MAD, validation, permissions, navigation, dictionnaires, erreurs, listes, filtres de liste, schémas comptes et paramètres |
-| Intégration (Vitest) | 110 | schéma et seed sur migrations réelles, authentification, personnes, catalogue, comptes, paramètres |
-| Bout en bout (Playwright) | 65 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide, phase 2, phase 2B, barre d'outils de liste en arabe, bannières d'erreur en arabe |
+| Unitaires (Vitest) | 302 | formatage MAD, validation, permissions, navigation, dictionnaires, erreurs, listes, filtres de liste, schémas comptes et paramètres |
+| Intégration (Vitest) | 111 | schéma et seed sur migrations réelles, authentification, personnes, catalogue, comptes, paramètres |
+| Bout en bout (Playwright) | 66 | connexion, verrouillage, changement forcé, bascule RTL, tableau de bord vide, phase 2, phase 2B, barre d'outils de liste en arabe, bannières d'erreur en arabe |
 
-Soit 411 tests Vitest et 65 tests Playwright, tous verts.
+Soit 413 tests Vitest et 66 tests Playwright, tous verts.
 
 `npm test` lance les deux projets Vitest d'un coup. Pour itérer sur un seul,
-`npm run test:unit` (301 tests, quelques secondes) ou
-`npm run test:integration` (110 tests, base réelle) : c'est la commande à
+`npm run test:unit` (302 tests, quelques secondes) ou
+`npm run test:integration` (111 tests, base réelle) : c'est la commande à
 utiliser quand une erreur vient d'un filtre de liste, d'un dictionnaire ou
 d'un message d'erreur, et qu'on veut savoir si le projet concerné est vert
-avant de lancer les 65 tests Playwright.
+avant de lancer les 66 tests Playwright.
 
 ---
 
@@ -309,9 +309,14 @@ Livrée sur `wip/phase-02b`, **non encore fusionnée dans `master`**.
   passe temporaire), tri, pagination ; création et modification en boîte de
   dialogue ; changement de rôle ; désactivation réversible ; réinitialisation de
   mot de passe ; lien facultatif vers une fiche enseignant.
-- **Paramètres du centre** (`/settings`) : identité, coordonnées, apparence
-  (couleurs, logo, fuseau horaire, langue par défaut) et pieds de page des
+- **Paramètres du centre** (`/settings`) : identité (nom français, nom arabe,
+  **nom court pour la barre latérale**, raison sociale), coordonnées, apparence
+  (logo, couleurs, fuseau horaire, langue par défaut) et pieds de page des
   documents, sur une seule page.
+- **La barre latérale lit l'écran des paramètres** : nom court (français ou
+  arabe selon la langue de l'interface), logo quand il y en a un, couleurs
+  injectées dans `<html>`. Sans logo, le bloc d'initiales est calculé sur le
+  nom court au lieu d'être écrit en dur.
 
 ### Ce que ces deux écrans ont corrigé
 
@@ -350,6 +355,16 @@ et plaçait le message de l'un sous le premier.
 **Un champ refusé doit être annoncé.** `Input`, `Textarea` et `Select`
 portaient une bordure rouge et rien d'autre : un lecteur d'écran n'apprenait pas
 que la valeur avait été refusée. Ils portent maintenant `aria-invalid`.
+
+**Une barre latérale ne doit pas écrire le nom du centre en dur.** Elle
+affichait deux lettres fixes et le nom complet, alors que l'écran des paramètres
+demande précisément un **nom court** pour elle : le nom court est donc un champ
+à part (français et arabe, 60 caractères comme la ligne qui l'affiche), la
+barre latérale le prend, et le logo configuré remplace le bloc d'initiales. Sans
+nom court, c'est le nom complet qui sert — jamais une valeur écrite en dur. Le
+test de bout en bout « the sidebar takes its name and its logo from the settings »
+le vérifie dans les deux langues, en annulant d'abord le câblage pour voir
+l'échec.
 
 **Un terme de recherche composé uniquement de jokers SQL ne doit rien lister.**
 `searchLiteral()` retire `%`, `_` et `\` du terme ; un terme qui ne contient

@@ -458,6 +458,47 @@ test.describe('centre settings (/settings)', () => {
   });
 
   /**
+   * The sidebar is drawn by the shell, not by the settings screen: a save that
+   * stores the short name and the logo but leaves the shell showing its
+   * hardcoded initials is the defect this covers, in both languages.
+   */
+  test('the sidebar takes its name and its logo from the settings', async ({ page }) => {
+    const seededShort = await page.locator('#center-shortNameFr').inputValue();
+    const seededLogo = await page.locator('#center-logoPath').inputValue();
+
+    const short = `CIM ${unique()}`;
+    await page.locator('#center-shortNameFr').fill(short);
+    // The logo has to be a file that exists under public/, or the sidebar would
+    // render a broken image instead of the initials.
+    await page.locator('#center-logoPath').fill('/favicon.svg');
+    await page.locator('#center-shortNameAr').fill('مركز CIM');
+    await save(page);
+
+    await page.goto('/dashboard');
+    await expect(page.locator('aside').getByText(short, { exact: true })).toBeVisible();
+    await expect(page.locator('aside img')).toHaveAttribute('src', '/favicon.svg');
+    // The initials badge stood in for the logo; with one configured it is gone.
+    await expect(page.locator('aside .bg-brand-600')).toHaveCount(0);
+
+    // The same shell in Arabic reads the Arabic short name, not the French one.
+    await page.context().addCookies([{ name: 'cim_locale', value: 'ar', url: E2E_BASE_URL }]);
+    await page.goto('/dashboard');
+    await expect(page.locator('aside').getByText('مركز CIM', { exact: true })).toBeVisible();
+    await expect(page.locator('aside')).not.toContainText(short);
+
+    // Put the shell back the way it was found.
+    await page.context().addCookies([{ name: 'cim_locale', value: 'fr', url: E2E_BASE_URL }]);
+    await page.goto('/settings');
+    await page.locator('#center-shortNameFr').fill(seededShort);
+    await page.locator('#center-shortNameAr').fill('');
+    await page.locator('#center-logoPath').fill(seededLogo);
+    await save(page);
+
+    await page.goto('/dashboard');
+    await expect(page.locator('aside img')).toHaveCount(seededLogo ? 1 : 0);
+  });
+
+  /**
    * The colour is read by the root layout, so a save that updates the row but
    * not `<html>` is a defect nothing else in the suite would catch.
    */

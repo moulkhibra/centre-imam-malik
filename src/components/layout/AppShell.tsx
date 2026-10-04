@@ -19,6 +19,8 @@ export function AppShell({
   locale,
   permissions,
   centerName,
+  centerShortName,
+  centerLogoUrl,
   unreadNotifications,
   notificationsReady,
   logoutAction,
@@ -28,7 +30,12 @@ export function AppShell({
   user: { firstName: string; lastName: string; email: string; roleLabel: string };
   locale: Locale;
   permissions: readonly Permission[];
+  /** Full name: documents, page titles, anything with room for it. */
   centerName: string;
+  /** Short name for the sidebar, falling back to `centerName`. */
+  centerShortName: string;
+  /** Public path of the centre logo, or null when none is configured. */
+  centerLogoUrl: string | null;
   unreadNotifications: number;
   notificationsReady: boolean;
   logoutAction: () => Promise<void>;
@@ -53,7 +60,8 @@ export function AppShell({
         permissions={permissions}
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        centerName={centerName}
+        centerName={centerShortName}
+        centerLogoUrl={centerLogoUrl}
         shellLabels={labels.shell}
       />
 

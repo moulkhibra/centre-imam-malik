@@ -143,6 +143,17 @@ describe('centre settings schema', () => {
     expect(parsed.receiptFooterFr).toBeNull();
   });
 
+  it('keeps the sidebar short name optional and trimmed', () => {
+    // The sidebar falls back to the full name, so a centre that never typed a
+    // short one must still save - an empty input is not an error.
+    const parsed = centerSettingsSchema.parse({ ...validSettings, shortNameFr: '  CIM  ', shortNameAr: '' });
+    expect(parsed.shortNameFr).toBe('CIM');
+    expect(parsed.shortNameAr).toBeNull();
+    expect(centerSettingsSchema.safeParse({ ...validSettings, shortNameFr: '' }).success).toBe(true);
+    // A short name still has to be a name, not a paragraph.
+    expect(centerSettingsSchema.safeParse({ ...validSettings, shortNameFr: 'x'.repeat(61) }).success).toBe(false);
+  });
+
   it('normalises blank fields to null instead of storing an empty string', () => {
     const parsed = centerSettingsSchema.parse({ ...validSettings, city: '', facebook: '  ', receiptFooterAr: '' });
     expect(parsed.city).toBeNull();
